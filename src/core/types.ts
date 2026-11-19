@@ -539,6 +539,20 @@ export interface MissionMetrics {
    */
   planMsTotal: number
   planCount: number
-  /** Worst believed hazard the rover actually drove across. */
+  /**
+   * Worst hazard on any cell the rover actually drove across, read from the
+   * belief **as it stands at the end of the mission**.
+   *
+   * That hindsight is deliberate but it answers only one of two questions.
+   * A cell crossed while it was believed clear, whose hidden hazard the rover
+   * discovered later, is counted here at its discovered severity. So this is
+   * the right number for "how dangerous was the ground that got driven" and
+   * the WRONG number for "how much risk did the planner knowingly accept" —
+   * the latter needs the belief as it stood at the moment of traversal, which
+   * is not recorded per cell.
+   *
+   * Benchmarks comparing planners on risk exposure are measuring the first
+   * question. Do not quote this as evidence about planner judgement.
+   */
   peakHazardTraversed: number
 }

@@ -22,9 +22,16 @@
  */
 
 import type { MissionConfig } from '../../src/core/types'
-import { configFor, ENERGY_GRID, RISK_GRID, SCENARIO_LIST, seedsFor } from '../lib/config'
+import {
+  configFor,
+  ENERGY_GRID,
+  REFERENCE,
+  RISK_GRID,
+  SCENARIO_LIST,
+  seedsFor,
+} from '../lib/config'
 import { drove, runMission, type MissionRun, type RunOutcome } from '../lib/mission'
-import { summarise, type Summary } from '../lib/stats'
+import { pairedDelta, pairedPercentDelta, summarise, type Summary } from '../lib/stats'
 
 export interface SweepCell {
   scenarioId: string
@@ -190,6 +197,136 @@ export function runSupervised(seedCount: number, risks: readonly number[]): Supe
         heldAtTick: summarise(heldTicks),
       })
     }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Slider sensitivity
+// ---------------------------------------------------------------------------
+
+/**
+ * Does each preference slider actually change the mission?
+ *
+ * WHY THIS IS A SEPARATE, PAIRED MEASUREMENT. Reading the grid above by eye
+ * suggests risk tolerance moves everything and energy priority moves almost
+ * nothing — but the grid reports medians over seeds, and a median that barely
+ * shifts is consistent with a per-seed effect that is real and simply
+ * cancels. The only way to tell is to hold the seed fixed, move one slider,
+ * and difference the same mission against itself.
+ *
+ * This is the product's own acceptance criterion from PRODUCT_SPEC.md turned
+ * into a number: "moving the risk-tolerance slider visibly changes the
+ * previewed route. If it does not, the cost model is not wired to the UI and
+ * the feature is a lie." A slider with no measurable effect is worth
+ * reporting as such.
+ */
+export interface SliderSensitivity {
+  scenarioId: string
+  slider: 'riskTolerance' | 'energyPriority'
+  /** The two settings compared, low then high. */
+  from: number
+  to: number
+  /** Value of the OTHER slider, held fixed. */
+  held: number
+  /** Seeds where both settings produced a completed mission. */
+  pairs: number
+  distancePct: Summary
+  energyPct: Summary
+  peakHazardAbs: Summary
+  replansAbs: Summary
+  /** Seeds where the driven trail changed at all. The bluntest test. */
+  routeChanged: number
+}
+
+function trailKey(run: MissionRun): string {
+  return run.state.trail.map((c) => `${c.x},${c.y}`).join(';')
+}
+
+function comparePair(
+  scenarioId: string,
+  slider: SliderSensitivity['slider'],
+  from: number,
+  to: number,
+  held: number,
+  lo: readonly MissionRun[],
+  hi: readonly MissionRun[],
+): SliderSensitivity {
+  const a: MissionRun[] = []
+  const b: MissionRun[] = []
+  let routeChanged = 0
+  for (let i = 0; i < lo.length; i++) {
+    if (lo[i].outcome !== 'complete' || hi[i].outcome !== 'complete') continue
+    a.push(hi[i])
+    b.push(lo[i])
+    if (trailKey(hi[i]) !== trailKey(lo[i])) routeChanged++
+  }
+  const col = (xs: MissionRun[], f: (r: MissionRun) => number) => xs.map(f)
+  return {
+    scenarioId,
+    slider,
+    from,
+    to,
+    held,
+    pairs: a.length,
+    distancePct: pairedPercentDelta(
+      col(a, (r) => r.metrics.distanceM),
+      col(b, (r) => r.metrics.distanceM),
+    ),
+    energyPct: pairedPercentDelta(
+      col(a, (r) => r.metrics.energyWh),
+      col(b, (r) => r.metrics.energyWh),
+    ),
+    peakHazardAbs: pairedDelta(
+      col(a, (r) => r.metrics.peakHazardTraversed),
+      col(b, (r) => r.metrics.peakHazardTraversed),
+    ),
+    replansAbs: pairedDelta(
+      col(a, (r) => r.metrics.replans),
+      col(b, (r) => r.metrics.replans),
+    ),
+    routeChanged,
+  }
+}
+
+/** Endpoints of each slider, with the other held at the reference value. */
+const RISK_LOW = 0.15
+const RISK_HIGH = 0.85
+const ENERGY_LOW = 0.1
+const ENERGY_HIGH = 0.8
+
+export function runSliderSensitivity(seedCount: number): SliderSensitivity[] {
+  const out: SliderSensitivity[] = []
+  for (const scenario of SCENARIO_LIST) {
+    const seeds = seedsFor(scenario, seedCount)
+    const run = (over: Partial<MissionConfig>) =>
+      seeds.map((seed) => runMission(configFor(scenario, { seed, ...over })))
+
+    const heldEnergy = REFERENCE.energyPriority
+    out.push(
+      comparePair(
+        scenario.id,
+        'riskTolerance',
+        RISK_LOW,
+        RISK_HIGH,
+        heldEnergy,
+        run({ riskTolerance: RISK_LOW, energyPriority: heldEnergy }),
+        run({ riskTolerance: RISK_HIGH, energyPriority: heldEnergy }),
+      ),
+    )
+
+    const heldRisk = REFERENCE.riskTolerance
+    out.push(
+      comparePair(
+        scenario.id,
+        'energyPriority',
+        ENERGY_LOW,
+        ENERGY_HIGH,
+        heldRisk,
+        run({ riskTolerance: heldRisk, energyPriority: ENERGY_LOW }),
+        run({ riskTolerance: heldRisk, energyPriority: ENERGY_HIGH }),
+      ),
+    )
   }
   return out
 }

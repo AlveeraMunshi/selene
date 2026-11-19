@@ -29,22 +29,22 @@ something, not that an agent reported success.
 | 0.3 | Engine API contract | orch | `docs/ENGINE_API.md` | done |
 | 0.4 | Product spec, test plan, decision log | orch | `docs/*.md` | done |
 | 0.5 | Scaffold, deps, Playwright | orch | root config | done |
-| 1.1 | Seeded RNG and terrain generation | C | `core/rng.ts`, `core/terrain.ts` | pending |
-| 1.2 | Cost model | C | `core/cost.ts` | pending |
-| 1.3 | A\* + uniform-cost oracle | C | `core/planner.ts` | pending |
-| 1.4 | Simulation loop, replanning, interventions | C | `core/engine.ts` | pending |
-| 1.5 | Explanation generator | C | `core/explain.ts` | pending |
-| 1.6 | Three tuned scenarios | C | `core/scenarios.ts` | pending |
-| 1.7 | Design tokens and component set | B | `src/ui/**`, `src/styles/**` | pending |
-| 1.8 | Canvas renderer and rAF hook | D | `src/render/**` | pending |
-| 1.9 | Store, three views, app shell | E | `src/state/**`, `src/views/**` | pending |
-| 2.1 | Seam reconciliation and full typecheck | orch | — | pending |
-| 2.2 | Production build | orch | `dist/` | pending |
+| 1.1 | Seeded RNG and terrain generation | C | `core/rng.ts`, `core/terrain.ts` | done |
+| 1.2 | Cost model | C | `core/cost.ts` | done |
+| 1.3 | A\* + uniform-cost oracle | C | `core/planner.ts` | done |
+| 1.4 | Simulation loop, replanning, interventions | C | `core/engine.ts` | done |
+| 1.5 | Explanation generator | C | `core/explain.ts` | done |
+| 1.6 | Three tuned scenarios | C | `core/scenarios.ts` | done |
+| 1.7 | Design tokens and component set | B | `src/ui/**`, `src/styles/**` | done |
+| 1.8 | Canvas renderer and rAF hook | D | `src/render/**` | done |
+| 1.9 | Store, three views, app shell | E | `src/state/**`, `src/views/**` | done |
+| 2.1 | Seam reconciliation and full typecheck | orch | — | **verified** — 0 type errors across 55 files |
+| 2.2 | Production build | orch | `dist/` | **verified** — 296 tests, build 264ms |
 | 3.1 | Unit, component and e2e suites | F | `tests/**`, `e2e/**` | pending |
 | 3.2 | Benchmark harness and research writeup | G | `bench/**`, `docs/RESEARCH.md` | pending |
-| 4.1 | Browser verification | orch | screenshots | pending |
+| 4.1 | Browser verification | orch | screenshots | **verified** — 3 layout/unit bugs found and fixed |
 | 4.2 | README and case study | G | `README.md`, `docs/CASE_STUDY.md` | pending |
-| 4.3 | Reusable skills distilled to project-builder | orch | external repo | pending |
+| 4.3 | Reusable skills distilled to project-builder | orch | external repo | done — 6 skills, gate passed |
 
 ## Integration policy
 

@@ -1,0 +1,47 @@
+{
+  "note": "Digests of the deterministic output of fixed missions. Regenerate with `npx tsx bench/run.ts --update-golden`. A change here means engine behaviour changed; that is sometimes correct and never accidental. planMsTotal is excluded from the metrics digest because it is wall-clock.",
+  "cases": {
+    "baseline-autonomous": {
+      "events": "00c5cbbf55854e75",
+      "decisions": "ba981c26d63b17b4",
+      "trail": "1244034318e5566a",
+      "metrics": "5d0736509cac1dfe"
+    },
+    "dynamic-autonomous": {
+      "events": "c04fe4b673959382",
+      "decisions": "ab798e9267b9f2e1",
+      "trail": "7de0faeac3e1a868",
+      "metrics": "c9cea3ac41a11f1f"
+    },
+    "competing-autonomous": {
+      "events": "56508cba7cccde20",
+      "decisions": "a3e0b0ca71638566",
+      "trail": "ff087874f4f724a1",
+      "metrics": "ca49d0fbcbf536c9"
+    },
+    "dynamic-supervised-held": {
+      "events": "e3618fd0b610982a",
+      "decisions": "144b6a9f6a521660",
+      "trail": "bab60aa1fd5d3139",
+      "metrics": "d0a19359da5388c3"
+    },
+    "competing-supervised-answered": {
+      "events": "8e220452dd764259",
+      "decisions": "755f55792317b3a1",
+      "trail": "8efc91f94727b081",
+      "metrics": "944f23eaa18b9d19"
+    },
+    "dynamic-late-failure": {
+      "events": "9473eecf35b780c7",
+      "decisions": "81c9feccbf38fe0d",
+      "trail": "b5872b343f83b5bc",
+      "metrics": "096ec75b7e1d6a82"
+    },
+    "dynamic-unroutable": {
+      "events": "b426b8a1c4ebdfd3",
+      "decisions": "a3eced5cc040877b",
+      "trail": "8937e33347d4330d",
+      "metrics": "3406de90faac1622"
+    }
+  }
+}

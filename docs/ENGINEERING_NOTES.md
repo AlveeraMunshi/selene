@@ -509,3 +509,105 @@ The cheap check, worth running once per layout: count elements whose right edge
 exceeds the viewport, and compare each flex/grid child's `scrollHeight` against
 its laid-out `height`. Both are a few lines in the console and both find this
 class of fault instantly.
+
+## A two-arm baseline cannot tell a cost function from a constraint (agent G, bench)
+
+The benchmark's headline question is whether risk-aware planning buys anything
+over shortest-distance planning. The obvious experiment is two arms: the
+mission's real weights, and `{distance:1, slope:0, hazard:0, energy:0}`, on the
+same belief between the same cells.
+
+That experiment is confounded and the confound is invisible in its output. Both
+arms are gated by the same `maxHazard`, which at the reference tolerance is
+0.51, so the "shortest-distance" arm is really *shortest path that is already
+forbidden from entering the worst ground*. Its routes come back looking
+respectably safe, and the measured advantage of the risk-aware arm is whatever
+is left over — which reads as "the cost function helps a bit".
+
+A third arm settles it in one extra call per seed: distance-only weights with
+the ceiling opened to 0.95, the most permissive the system admits. The
+peak-hazard gap goes from 9–20% against the constrained baseline to **30–44%**
+against the unconstrained one. Roughly half the safety was the hard constraint
+the whole time, and with two arms there is no way to know that.
+
+**The mechanism:** when a treatment and a baseline share a *gate* as well as an
+*objective*, the gate's contribution is attributed to the objective by default.
+Any A/B over a planner with hard constraints has this shape. The fix is cheap
+and the failure is silent, which is the worst combination.
+
+## Pooling an unroutable mission into a distance median inverts the result (agent G, bench)
+
+Varying `config.seed` gives a genuinely different world under the same scenario
+parameters, which is what makes a seed ensemble worth having. It also means the
+fixed start and waypoints land on terrain that sometimes has no route at all:
+at `riskTolerance` 0.15 on `competing-objectives`, **8 of 12 seeds** are
+unroutable, and the engine reports those as `outcome: 'failed'` with
+`distanceM: 0` at tick 0.
+
+Averaging those in does not add noise, it adds bias in a specific direction:
+the more hostile the configuration, the more zeros, so the distance median
+*falls* as conditions get worse. The table then says low risk tolerance
+produces shorter routes, which is the opposite of the truth.
+
+Three buckets are needed and the engine's `outcome` field only distinguishes
+one of them:
+
+- **unroutable** — no route at tick 0, nothing driven, excluded from continuous
+  medians and reported as its own column;
+- **failed** — drove and then could not continue (battery, or replanned into a
+  pocket), which is the interesting autonomy failure;
+- **held** — supervised, waiting for a human, neither success nor failure.
+
+`classify()` in `bench/lib/mission.ts` separates them on `tick === 0 &&
+odometerM === 0`. Completion rate is computed over all seeds; everything
+continuous is pooled over missions that actually drove, and both denominators
+are printed.
+
+## The admissible bound ignores two of its four weights, and the benchmark can see it (agent G, bench)
+
+`minCostPerCellStep` is `w.distance/√2 + w.energy·flat·M/MAXE`. The slope and
+hazard terms are dropped, correctly — they can be zero, so keeping them would
+break admissibility. The consequence is not in the proof, it is in the
+performance: **the heuristic is weakest exactly when the hazard weight is
+largest**.
+
+Measured over 160 terrains, A\* expansions as a percentage of the uniform-cost
+oracle's: 31.8% at `riskTolerance` 0.85, 36.3% at 0.55, 48.7% at 0.25 and 0.05.
+Monotone, and a 1.5× swing. A risk-averse mission is intrinsically more
+expensive to plan.
+
+Worth knowing for two reasons. It predicts where a larger grid will hurt first
+— a cautious mission on a 1000×1000 map, not an average one. And it means
+`heuristicWeight` is not the neutral speed knob it looks like: the inflated
+heuristic is a *distance* bound, so weighting it up weights distance up against
+hazard, and the median peak hazard of the returned route rises from 0.240 at
+w=1 to 0.492 at w=2 on `baseline-traverse`. A control that appears to trade
+accuracy for speed also trades away caution.
+
+## A gate that has only ever passed has not been tested (agent G, bench)
+
+`bench/run.ts --ci` hashes seven missions' event logs, decision logs, trails
+and deterministic metrics against `bench/golden.json`. Writing it and watching
+it print PASS proves nothing: a gate that compares a digest against itself, or
+that silently treats a missing golden file as "no cases to check", passes just
+as cheerfully.
+
+Both directions were checked explicitly — a deliberately corrupted digest
+produces a named failure and exit 1, and a missing `golden.json` produces an
+instruction and exit 1 rather than a vacuous pass. Two minutes, and it is the
+difference between a gate and a decoration.
+
+It then earned its keep within the hour. `RoverSpec.idleW` was renamed to
+`idleWhPerS` across `types.ts`, `scenarios.ts` and `engine.ts` by a
+concurrently-running agent; the seven digests still matched, which is exactly
+the evidence a behaviour-preserving refactor needs and which a suite of
+assertions is slower at producing.
+
+**One metrics gap found while building it, worth a two-line fix in `engine.ts`:**
+`plan()` returns `PlannerStats.nodesExpanded` and the engine discards it,
+accumulating only wall clock and a call count into `MissionMetrics`. Closed-loop
+search effort is therefore unmeasurable from the public API, so every node
+count in the benchmark is open-loop and the closed-loop tables fall back to
+`planCount`. Given that risk aversion costs 2–12× expansions *and* roughly 2×
+the replans, the compounded figure is probably the interesting one and nobody
+can currently see it.
