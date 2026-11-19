@@ -32,7 +32,17 @@ export interface KeyValueProps {
 export function KeyValue({ rows, className, mono = true, divided = false }: KeyValueProps) {
   if (rows.length === 0) return null
   return (
-    <dl className={cn('grid grid-cols-[minmax(0,1fr)_auto] gap-x-4', className)}>
+    // Track sizing is load-bearing. The key track was `minmax(0,1fr)` and the
+    // value track `auto`: an uncapped value takes its max-content width and
+    // starves the elastic key to zero. A 334px trigger string inside a 380px
+    // panel resolved the columns to `0px 334px`, and every <dt> in the block
+    // vanished — silently, because `truncate` on a zero-width box renders no
+    // ellipsis. It only ever showed up on rows carrying prose, which are the
+    // interesting ones.
+    //
+    // So: the key sizes to its content and may shrink, the value takes the
+    // remainder and wraps.
+    <dl className={cn('grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4', className)}>
       {rows.map((row, i) => (
         // The index is part of the key because `k` is a ReactNode and two
         // rows are legitimately allowed to share a name across sections.
@@ -46,7 +56,9 @@ export function KeyValue({ rows, className, mono = true, divided = false }: KeyV
           <dt className="min-w-0 truncate text-2xs text-ink-dim">{row.k}</dt>
           <dd
             className={cn(
-              'justify-self-end text-right text-[0.8125rem] leading-5',
+              'min-w-0 justify-self-end text-right text-[0.8125rem] leading-5',
+              // Prose values must wrap rather than widen the track.
+              'break-words',
               mono && 'num',
               toneText[row.tone ?? 'default'],
             )}

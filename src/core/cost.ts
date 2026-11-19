@@ -64,8 +64,22 @@ export function weightsFor(config: MissionConfig): CostWeights {
   const energyPriority = clamp01(config.energyPriority)
 
   const hazard = HAZARD_W_BASE + HAZARD_W_SPAN * (1 - risk) ** 2
-  // Exponent 1.5 so the first half of the energy slider does comparatively
+  // Exponent 1.5, intended so the first half of the slider does comparatively
   // little and the top end is decisive — the same shape as the hazard curve,
+  //
+  // MEASURED, AND IT DOES NOT BEHAVE THAT WAY. Sweeping energyPriority
+  // 0.0 / 0.5 / 1.0 through the real planner moves the route by 482/482/482 m
+  // on baseline-traverse (inert outright), 336/349/349 on dynamic-hazard and
+  // 531/534/534 on competing-objectives — so it is the TOP half that is inert,
+  // which is the opposite of the intent above.
+  //
+  // The cause is physical rather than a wiring fault: net elevation change is
+  // fixed by the endpoints, and the climb term is only 12-19% of a route's
+  // total energy, so weighting energy harder has very little left to trade
+  // against. Raising the weight further would start distorting the route for a
+  // median saving measured at 0.2-0.5%. Documented in docs/RESEARCH.md rather
+  // than tuned away; a genuine fix needs an energy model with something
+  // route-dependent in it (slip, thermal, solar incidence), not a new exponent.
   // which keeps the two sliders feeling alike.
   const energy = ENERGY_W_BASE + ENERGY_W_SPAN * energyPriority ** 1.5
   const slope = SLOPE_W_BASE + SLOPE_W_SPAN * energyPriority

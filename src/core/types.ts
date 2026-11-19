@@ -501,6 +501,19 @@ export interface MissionRecord {
   createdAt: string
   config: MissionConfig
   resolutions: InterventionResolution[]
+  /**
+   * Tick at which an operator aborted the mission, when `outcome` is
+   * 'aborted'. Absent otherwise.
+   *
+   * An abort is an INPUT to the run in exactly the way an intervention answer
+   * is, and leaving it out broke the record's one promise. `replay()` re-runs
+   * from (config, resolutions); an abort appears in neither, so a mission
+   * stopped by hand at tick 40 replayed happily on to its natural completion
+   * at tick 1,440 — and the analysis view then showed a 40-tick aborted
+   * mission's metrics beside a 1,440-tick completed mission's map and said
+   * nothing about the discrepancy.
+   */
+  abortedAtTick?: number
   outcome: MissionOutcome
   metrics: MissionMetrics
   events: SimEvent[]

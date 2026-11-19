@@ -1280,6 +1280,10 @@ export function toRecord(state: SimState, missionId: string, createdAt: string):
     createdAt,
     config: state.config,
     resolutions: state.resolutions,
+    // An abort is an input, not a derived result, so it belongs in the record
+    // beside the operator's other decisions. Without it replay cannot know the
+    // run was cut short.
+    ...(state.outcome === 'aborted' ? { abortedAtTick: state.tick } : {}),
     outcome: state.outcome ?? 'aborted',
     metrics: computeMetrics(state),
     events: state.events,
@@ -1317,6 +1321,12 @@ export function replay(record: MissionRecord, maxTicks = DEFAULT_MAX_TICKS): Sim
         if (s.pendingIntervention === null) break
         s = resolveIntervention(s, optionId)
       }
+    }
+    // Reproduce an operator abort at the tick it happened — after any answers
+    // due at that same tick, since an operator can answer and then abort
+    // within one tick and aborting first would drop the answer.
+    if (record.abortedAtTick !== undefined && s.tick >= record.abortedAtTick) {
+      return abortMission(s)
     }
     const next = step(s)
     // Identical object means the tick was a no-op — a pending intervention

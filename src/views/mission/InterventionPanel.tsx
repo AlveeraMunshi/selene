@@ -79,6 +79,12 @@ function OptionCard({
           variant={option.action.type === 'abort-mission' ? 'danger' : 'primary'}
           size="sm"
           onClick={() => onResolve(option.id)}
+          // The visible text is "Choose" on every option, which is right on
+          // screen — the label it belongs to is directly beside it. Announced
+          // on its own it is four identical buttons, so a screen-reader user
+          // cannot tell which route they are committing to on the one screen
+          // where the decision cannot be undone.
+          aria-label={`${option.action.type === 'abort-mission' ? 'Abort' : 'Choose'}: ${option.label}`}
         >
           {option.action.type === 'abort-mission' ? 'Abort' : 'Choose'}
         </Button>

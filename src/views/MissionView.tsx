@@ -34,6 +34,7 @@ import { MapCanvas } from '@/views/shared/MapCanvas'
 import { DecisionInspector } from './mission/DecisionInspector'
 import { DecisionStream } from './mission/DecisionStream'
 import { InterventionPanel } from './mission/InterventionPanel'
+import { OutcomeBanner } from './mission/OutcomeBanner'
 import { LayerToggles } from './mission/LayerToggles'
 import { TelemetryRail } from './mission/TelemetryRail'
 import { TransportControls } from './mission/TransportControls'
@@ -84,8 +85,18 @@ export function MissionView({ onGoToPlanner }: MissionViewProps) {
     )
   }
 
+  // auto-rows-min is load-bearing below 1100px. Stacked, this is a
+  // single-column grid with a definite height whose children all carry
+  // min-h-0 for their own internal scrolling — which drops every row's
+  // minimum to zero, so the three rows split the height equally and each
+  // one's content spills over the row after it. Panels paint on top of
+  // one another and the transport controls end up underneath the decision
+  // stream, un-clickable while still passing every visibility check.
+  // Sizing rows to their content makes the total legitimately exceed the
+  // height, which is what the overflow-y-auto here was always for. Above
+  // 1100px it is one row of three columns and rows must stretch again.
   return (
-    <div className="grid h-full min-h-0 gap-3 overflow-y-auto p-3 min-[1100px]:grid-cols-[260px_minmax(0,1fr)_380px] min-[1100px]:overflow-hidden">
+    <div className="grid h-full min-h-0 auto-rows-min gap-3 overflow-y-auto p-3 min-[1100px]:auto-rows-auto min-[1100px]:grid-cols-[260px_minmax(0,1fr)_380px] min-[1100px]:overflow-hidden">
       <div className="min-h-0 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
         <TelemetryRail />
       </div>
@@ -100,6 +111,19 @@ export function MissionView({ onGoToPlanner }: MissionViewProps) {
             position nothing else can be mistaken for. */}
         {pending && !replaying ? (
           <InterventionPanel request={pending} onResolve={resolve} className="shrink-0" />
+        ) : null}
+
+        {/* A finished mission said so only via a small badge in the telemetry
+            rail; the engine's reason for a failure lived solely in the event
+            log on another screen. */}
+        {state.outcome && !replaying ? (
+          <OutcomeBanner
+            outcome={state.outcome}
+            events={state.events}
+            waypointsReached={state.rover.waypointIndex}
+            waypointsTotal={state.config.waypoints.length}
+            className="shrink-0"
+          />
         ) : null}
 
         <Panel flush className="min-h-[360px] shrink-0 grow basis-[360px] overflow-hidden">

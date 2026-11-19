@@ -17,7 +17,7 @@
  * decisions all still happen inside `step()` and `resolveIntervention()`.
  */
 
-import { createSimulation, resolveIntervention, step } from '@/core/engine'
+import { abortMission, createSimulation, resolveIntervention, step } from '@/core/engine'
 import type { MissionRecord, SimState } from '@/core/types'
 
 /** Hard stop. A record that will not terminate is a bug, not a long mission. */
@@ -74,6 +74,18 @@ function advance(state: SimState, record: MissionRecord): SimState | null {
     // the operator never made.
     if (!match) return null
     return resolveIntervention(state, match.optionId)
+  }
+  // An operator abort is an input to the run, recorded as the tick it happened
+  // at. Without honouring it the session steps past the abort to the mission's
+  // natural end — a 40-tick aborted run reconstructing as a 1,440-tick
+  // completed one, with the scrubber describing a mission that never happened
+  // beside metrics from the one that did.
+  //
+  // Checked AFTER the pending-resolution branch, because an operator can
+  // answer and then abort within the same tick, and aborting first would drop
+  // the answer that was actually given.
+  if (record.abortedAtTick !== undefined && state.tick >= record.abortedAtTick) {
+    return abortMission(state)
   }
   return step(state)
 }

@@ -7,3 +7,4 @@ test-results
 bench/out
 .tsconfig.*.tmp.json
 tsconfig.tsbuildinfo
+e2e/screenshots

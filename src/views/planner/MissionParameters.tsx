@@ -38,7 +38,10 @@ export function MissionParameters({
   return (
     <Panel
       title="Mission parameters"
-      subtitle="Every control here changes the cost function, so the previewed route moves with it."
+      // Risk tolerance and max slope move the route readily; energy priority
+      // measurably does not (see the note in cost.ts). Claiming otherwise
+      // invites the reader to conclude the preview is broken.
+      subtitle="Each control reweights the cost function. Risk tolerance and the slope limit move the route most; energy priority is deliberately a weak preference."
     >
       <div className="grid gap-4">
         <Slider

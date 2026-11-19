@@ -611,3 +611,238 @@ count in the benchmark is open-loop and the closed-loop tables fall back to
 `planCount`. Given that risk aversion costs 2–12× expansions *and* roughly 2×
 the replans, the compounded figure is probably the interesting one and nobody
 can currently see it.
+
+## The e2e harness cannot reach its own server (agent F, wave 2)
+
+`npx playwright test` from a clean checkout fails with
+`Timed out waiting 180000ms from config.webServer` — three minutes of nothing,
+then a message that says nothing about the cause. The app is fine and the
+tests are fine.
+
+`playwright.config.ts` runs `npm run preview -- --port 4173 --strictPort` and
+waits on `http://127.0.0.1:4173`. Vite's preview server defaults to
+`host: 'localhost'`, and on macOS with Node 17+ `localhost` resolves verbatim
+to `::1` first, so the server binds **IPv6 loopback only**:
+
+```
+$ lsof -nP -iTCP -sTCP:LISTEN | grep 4173
+node  47025  ...  TCP [::1]:4173 (LISTEN)
+$ curl -o /dev/null -w '%{http_code}' http://localhost:4173/   # 200
+$ curl -o /dev/null -w '%{http_code}' http://127.0.0.1:4173/   # fails to connect
+```
+
+`127.0.0.1` and `::1` are different addresses. The readiness probe never
+succeeds, so Playwright waits out the full timeout and never starts a test.
+
+**Either one-token change fixes it**, and both were verified against the
+measurements above:
+
+- add `--host 127.0.0.1` to the `webServer.command`, which makes the server
+  bind the address the config already names; or
+- change `webServer.url` *and* `use.baseURL` to `http://localhost:4173`.
+
+Until then the suite runs only if a correctly-bound server is already up —
+`npx vite preview --port 4173 --strictPort --host 127.0.0.1` — because
+`reuseExistingServer` is true outside CI. **In CI it is false, so this is a
+hard failure there**, which is the worst place for it: the symptom is a
+three-minute hang attributed to a slow build.
+
+The generalisation is the one already written at the top of this file about
+`baseUrl`: a shared config file belongs to nobody, and a fault in it is
+invisible to every agent's local reasoning. The cheap guard is the same —
+run the real command once against a trivial spec before building on it.
+
+## Three ways a browser test lies about CSS, all found in one afternoon (agent F, wave 2)
+
+**A transitioned property reads as its start value.** `.focus-ring` paints
+`outline: 2px solid transparent` always and colours it under
+`:focus-visible`. `Button`, `Tabs`, `Toggle` and the scenario cards also carry
+`transition-colors`, and Tailwind's `transition-colors` includes
+`outline-color` — so the ring *fades in*. A `getComputedStyle` read taken
+immediately after `keyboard.press('Tab')` catches frame one and returns
+`rgba(0, 0, 0, 0)`. The first draft of the accessibility test reported **ten
+controls with no focus indicator**; every one of them was fine. The tell was
+that the four range inputs and the seed `<input>` passed — those are the
+controls with no `transition-colors` on them. Poll for the painted state with
+a bound; do not read it once.
+
+**An element can be visible, enabled, correctly named — and unclickable.**
+See the transport defect below. `toBeVisible()` and `toBeEnabled()` both pass
+on an element another element is painted over; only a hit test finds it.
+`document.elementFromPoint` at the control's own centre is the check, and
+Playwright's own actionability timeout is the assertion.
+
+**A debounced panel shows the previous answer.** The store debounces planning
+by 120 ms, so the route figures immediately after a slider moves belong to the
+*last* configuration. A test that read them too early took Mare Traverse's
+482 m as Rille Crossing's cautious distance and failed a directional
+comparison against 490 m. The fix is never to read a derived figure on
+arrival: capture the previous text, act, and wait for it to change.
+
+## The mission view's panels overlap below 1100px (agent F, wave 2)
+
+The narrow layout does not stack; it overlaps. Measured by comparing every
+pair of `<section>` boxes inside `<main>`, viewport height held at 820:
+
+| width | overlapping pairs | panels past the bottom of `<main>` |
+|---|---|---|
+| 1280 | 0 | none |
+| 900 | **6** | **2** |
+
+At 900px the **Traverse** telemetry panel is covered by the map across its
+full 181px height, the **Objective** panel by 154px; the transport panel is
+covered by the decision stream and the decision inspector; and the transport
+panel and the inspector both extend below `<main>`, with no page scroll to
+reach them.
+
+The consequence an operator meets first is that the transport cannot be
+clicked. `document.elementFromPoint` at each control's own centre:
+
+| width | Play/Pause | Step | Reset | layer switch |
+|---|---|---|---|---|
+| 1280 | OK | OK | OK | OK |
+| 1100 | OK | OK | OK | OK |
+| 1099 | **blocked** | **blocked** | **blocked** | OK |
+| 900 | **blocked** | **blocked** | **blocked** | OK |
+| 768 | **blocked** | **blocked** | **blocked** | OK |
+| 420 | **blocked** | **blocked** | **blocked** | **blocked** |
+
+**Mechanism.** The narrow layout keeps `h-full` on a grid whose three auto
+rows cannot hold their content: the telemetry column alone stacks to roughly
+600px inside a row of roughly 254px, so it overflows and the next row — later
+in the DOM, therefore painted on top — covers it. `overflow-y-auto` on the
+outer grid does not help, because the rows are sized against the container
+rather than against their contents.
+
+**Why no ordinary assertion catches it.** Every control is `visible`, every
+control is `enabled`, every control has the right accessible name, and the
+panels all report sensible sizes. `toBeVisible()` passes on an element
+something else is painted over. The only checks that find it are a hit test
+and a pairwise box comparison, and the only reason to run either is having
+looked at a screenshot first.
+
+The one thing that still works at these widths is the Space shortcut, because
+a keyboard event does not go through hit-testing — which is the only way to
+stop a mission on a narrow viewport today. Both are asserted in
+`e2e/06-keyboard-responsive.spec.ts`, the defect as `test.fail()`.
+
+## An aborted mission does not replay as the mission that was aborted (agent F, wave 2)
+
+`toRecord` stores `(config, resolutions)` and stamps `outcome`. An operator
+abort is neither — `abortMission()` sets the outcome on the live state and
+nothing records that it happened — so `replay()` re-runs from the seed and
+simply keeps going.
+
+Measured: a `baseline-traverse` mission aborted at tick 40 produces a record
+with `metrics.ticks: 40` and `outcome: 'aborted'`, whose `buildReplaySession`
+runs to **tick 1,440** and ends `'complete'`, with `truncated: false`. The
+Analysis view then shows a 40-tick aborted mission's metrics beside a
+1,440-tick completed mission's map, chart and scrubber, and says nothing.
+
+This is the one case where TEST_PLAN's closing claim — "the recorded mission
+is a faithful account of the one that ran" — does not hold. The fix is a line
+in the record: either an `abortedAtTick`, or a `mission-aborted` entry the
+replay loop honours. Encoded as `it.fails` in
+`tests/store-replay.integration.test.ts`.
+
+## No mission can be driven to completion in a browser test (agent F, wave 2)
+
+The three scenarios run 1,816 / 1,440 / 1,026 ticks. The fastest playback the
+UI offers is 4x on a 2 Hz base, so the *shortest* of them is 2 minutes 8
+seconds of wall clock, and the longest is 3 minutes 47. A journey that watched
+one finish would spend its whole budget testing `setInterval`.
+
+Three things made journeys 1–5 affordable anyway, and they are worth knowing
+before anyone writes the next one:
+
+- **A supervised mission is already waiting before the first tick.**
+  `createSimulation` plans the opening route and raises
+  `risk-exceeds-tolerance` on the default configuration, so the intervention
+  journey needs zero ticks.
+- **`dynamic-hazard` replans at tick 7**, then 13, 19 and 25. Driving it with
+  the Step control — one engine tick per click — reaches the first replan in
+  seven clicks with no timing dependency at all.
+- **A waypoint at (12, 80) instead of the scenario's own (52, 44)** turns
+  `baseline-traverse` into a genuinely completed 143-tick mission. That is the
+  record `e2e/fixtures/records.ts` builds in Node and seeds into
+  `localStorage` for the analysis journey; the browser still re-simulates it
+  through `buildReplaySession`, so every figure on screen is computed in the
+  page.
+
+## `npm run typecheck` does not cover `e2e/` (agent F, wave 2)
+
+`tsconfig.json` has `"exclude": ["e2e", ...]`, which is right for the build —
+Playwright specs must not reach the bundle — and means the e2e suite is
+invisible to the project typecheck. They are type-clean under the project's
+own strict settings, but only when checked explicitly:
+
+```
+npx tsc --ignoreConfig --noEmit --strict --noUnusedLocals --noUnusedParameters \
+  --target ES2022 --module ESNext --moduleResolution bundler --jsx react-jsx \
+  --skipLibCheck --lib ES2022,DOM,DOM.Iterable --types node \
+  e2e/*.ts e2e/fixtures/*.ts
+```
+
+Worth either adding to the `typecheck` script or giving `e2e/` its own
+`tsconfig.json` with a project reference.
+
+## One long value hides eight labels (agent F, wave 2)
+
+The decision inspector's "Record" block renders a column of unlabelled
+values: `0`, `Intervention resolved`, `Driving`, `4, 88`, a sentence, a
+reason code and two percentages, with nothing saying which is which. The
+labels are in the DOM, in the accessibility tree, and **zero pixels wide**.
+
+`KeyValue` lays out `grid-cols-[minmax(0,1fr)_auto]` — key elastic, value
+content-sized with no cap — and each row is `grid-cols-subgrid`, so every row
+shares those two tracks. That sharing is what turns one long value into eight
+missing labels rather than one. The decision column is a fixed 380px; the
+`Trigger` row on an intervention-resolved decision reads
+`operator chose "Proceed on the planned route"` and measures 334px, so the
+`auto` track takes it all and the key track resolves to 0. `truncate` on the
+`<dt>` then hides it with no ellipsis, because the box has no width to put one
+in.
+
+Measured `grid-template-columns` on that `<dl>`: `0px 334px`, identically at
+1440, 1700, 2000 and 2400px. The column is fixed, so widening the browser does
+not help.
+
+**Why it survived review.** The same component is correct everywhere else —
+Analysis's "Planned against executed" keeps a 276px key column, because every
+value there is a short figure — and it is correct on the *first* decision a
+mission produces, whose trigger is the twelve-character "mission start". It
+only breaks on decisions carrying prose, which is to say on the interesting
+ones.
+
+A `max-w` or `wrap-anywhere` on the value cell closes it. Encoded as
+`test.fail()` in `e2e/08-decision-inspector.spec.ts`, which measures the `dt`
+widths directly — no screenshot comparison, because the failure is invisible
+in a screenshot taken of the working case.
+
+## The energy slider's stated curve is inverted in practice (agent F, wave 2)
+
+`MissionParameters` tells the operator "every control here changes the cost
+function, so the previewed route moves with it", and `cost.ts` explains the
+`energyPriority ** 1.5` exponent as chosen "so the first half of the energy
+slider does comparatively little and the top end is decisive".
+
+Measured through `computePreview` on each shipped scenario, moving
+`energyPriority` across its whole range:
+
+| scenario | 0.0 | 0.5 | 1.0 |
+|---|---|---|---|
+| baseline-traverse | 482 m | 482 m | 482 m |
+| dynamic-hazard | 336 m | 349 m | 349 m |
+| competing-objectives | 531 m | 534 m | 534 m |
+
+The weight does reach the planner, so this is not a wiring fault — but the
+**top half of the slider is inert on all three maps**, and on
+`baseline-traverse` the whole control is. Whatever movement exists happens
+between 0 and 0.5, which is the opposite of the comment.
+
+Found by writing an e2e assertion that the control moves the plan and having
+it fail honestly. Risk tolerance, by contrast, swings
+`competing-objectives` from 752 m at 27% peak hazard to 490 m at 75% — it is
+the control the acceptance criterion names, and it works exactly as
+documented. There is no test for `energyPriority` in the suite, because an
+assertion that it changes the route would be asserting something false.

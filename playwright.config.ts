@@ -13,7 +13,13 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
+    // --host 127.0.0.1 is load-bearing, not decoration. `vite preview` binds
+    // [::1] only by default, while `url` below probes 127.0.0.1, so the probe
+    // never succeeds and the run dies after the full 180s timeout with a
+    // message about the timeout rather than about the address. Locally
+    // `reuseExistingServer` hides it whenever some correctly-bound server
+    // happens to be up; CI sets that false, so it fails there every time.
+    command: 'npm run build && npm run preview -- --port 4173 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
