@@ -114,7 +114,12 @@ export function Tabs({ tabs, active, onChange, className, 'aria-label': ariaLabe
             disabled={tab.disabled}
             onClick={() => !tab.disabled && onChange(tab.id)}
             className={cn(
-              'focus-ring inline-flex min-w-0 flex-1 items-center justify-center gap-1.5',
+              // flex-auto, not flex-1: flex-1 is `flex: 1 1 0%`, whose zero basis
+              // discards the label's own width, so every tab gets an identical
+              // share and the longest label is the one `truncate` clips —
+              // "Analysis" rendered as "Analy..." with free space beside it.
+              // flex-auto still fills the bar but never shrinks below content.
+              'focus-ring inline-flex min-w-0 flex-auto items-center justify-center gap-1.5',
               'rounded-[4px] px-2.5 py-1 text-2xs font-medium whitespace-nowrap',
               'transition-colors duration-[var(--duration-fast)] ease-[var(--ease-instrument)]',
               'disabled:cursor-not-allowed disabled:opacity-40',
