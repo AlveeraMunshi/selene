@@ -883,3 +883,56 @@ that one was verified by corrupting a golden digest and watching it exit 1.
 The conclusion drawn from the broken check happened to be right: the tree really
 was clean, confirmed afterwards with a validated command. That is luck, and it
 is why the habit has to be mechanical rather than triggered by suspicion.
+
+## Two things that only break once the repository leaves the laptop
+
+Both were invisible locally and both failed on the first attempt to publish.
+
+### `npm ci` resolves a different tree than the machine that wrote the lockfile
+
+CI died in ten seconds, before a single test:
+
+```
+npm error `npm ci` can only install packages when your package.json and
+npm error package-lock.json ... are in sync.
+npm error Missing: @emnapi/core@2.0.0-beta.2 from lock file
+npm error Missing: @emnapi/runtime@2.0.0-beta.2 from lock file
+```
+
+Nothing in the project depends on those. They are dependencies of
+`@tailwindcss/oxide-wasm32-wasi`, the WebAssembly fallback that ships for
+platforms with no native binary. On the development machine a native binary
+exists, the wasm fallback is never installed, and **npm omits its transitive
+dependencies from the lockfile entirely** — so the lock is complete for the
+platform that produced it and incomplete everywhere else.
+
+The trap inside the trap: simulating it by copying `package.json` and
+`package-lock.json` into a temp directory and running `npm ci` **passed**,
+because that ran on the same platform. A local reproduction that shares the
+property you are trying to test is not a reproduction.
+
+`npm install --package-lock-only` does **not** fix it; it resolves against the
+current platform too, and in this case it removed four entries rather than
+adding the two missing ones. What fixed it was deleting `node_modules` **and**
+the lockfile and running a full `npm install`, after which all four expected
+entries were present and `npm ci` passed.
+
+The general rule: a lockfile regenerated without deleting `node_modules` is
+regenerated against what is already on disk. When a lock is suspected, remove
+both.
+
+### A git push over HTTP/2 fails at 400 with nothing useful in the message
+
+```
+error: RPC failed; HTTP 400 curl 22 The requested URL returned error: 400
+send-pack: unexpected disconnect while reading sideband packet
+```
+
+The usual advice for this is `http.postBuffer`, on the theory that the push is
+too large. It was not: the largest tracked file was 196 KB and the whole
+repository under 2 MB, which is the measurement worth taking first because it
+rules the common explanation out immediately.
+
+`git config http.version HTTP/1.1` pushed it first time. Worth reaching for
+whenever a small push fails at 400, and worth checking the repository size
+before touching the buffer so the fix is not applied blind.
