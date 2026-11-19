@@ -1,0 +1,24 @@
+name: ci
+on:
+  push: { branches: [main, master] }
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: npm ci
+      - name: typecheck
+        run: npx tsc --noEmit
+      - name: unit tests
+        run: npx vitest run
+      - name: build
+        run: npm run build
+      - name: benchmark (reproducibility gate)
+        run: npx tsx bench/run.ts --ci
+      - name: install browser
+        run: npx playwright install --with-deps chromium
+      - name: end-to-end
+        run: npx playwright test

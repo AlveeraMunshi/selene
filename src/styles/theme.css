@@ -1,0 +1,362 @@
+/*
+ * SELENE design tokens.
+ *
+ * WHY THIS FILE EXISTS: every colour, radius, font and duration in the
+ * interface is declared exactly once, here, as a CSS custom property inside
+ * Tailwind v4's `@theme` block. Components reference tokens by utility name
+ * (`bg-surface-1`, `text-warn`, `rounded-panel`) and never write a hex value.
+ * That is what lets the whole instrument be re-skinned, contrast-audited or
+ * printed to a light theme by editing one file instead of forty.
+ *
+ * THE ONE RULE THAT IS NOT NEGOTIABLE — COLOUR IS SEMANTIC:
+ *   accent (ice cyan) .. live data, current selection, the primary action
+ *   warn   (amber)    .. caution. A risk the operator should look at.
+ *   danger (red)      .. a breach, a failure, a destructive action.
+ *   good   (green)    .. nominal, within limits, succeeded.
+ * Amber and red are RESERVED for risk semantics. They never decorate. An
+ * amber pixel anywhere on this screen means the same thing as every other
+ * amber pixel, which is the only reason a glance at the screen is worth
+ * anything during a mission.
+ */
+
+@import "tailwindcss";
+
+@theme {
+  /* ---------------------------------------------------------------- *
+   * Surfaces — depth comes from layered value, never from shadow.
+   * Each step is a small lightness increment on the same midnight hue.
+   * ---------------------------------------------------------------- */
+  --color-void: #070a0f;        /* the page itself; nothing sits behind it */
+  --color-surface-0: #0b0f16;   /* app chrome: rails, headers, footers     */
+  --color-surface-1: #10151e;   /* panels                                   */
+  --color-surface-2: #161c27;   /* inputs, raised rows inside a panel       */
+  --color-surface-3: #1e2633;   /* hover / pressed                          */
+
+  /* Hairlines. Low-alpha white rather than a hard grey so borders read as
+   * an edge of light, not as a drawn line. */
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.13);
+
+  /* ---------------------------------------------------------------- *
+   * Ink
+   * ---------------------------------------------------------------- */
+  --color-ink: #e4ecf6;         /* values, headings                          */
+  --color-ink-muted: #9fadc0;   /* body copy, secondary text                 */
+  --color-ink-dim: #6a7a8e;     /* eyebrow labels, units, captions           */
+  --color-ink-faint: #475466;   /* disabled, rails, placeholder              */
+
+  /* ---------------------------------------------------------------- *
+   * Accent — ice cyan. Used sparingly: if everything is cyan, nothing is.
+   * ---------------------------------------------------------------- */
+  --color-accent: #5cc8e8;
+  --color-accent-strong: #84dcf5;
+  --color-accent-dim: #2c7a90;
+  --color-accent-ink: #04161d;  /* text placed on a solid accent fill        */
+
+  /* ---------------------------------------------------------------- *
+   * Risk semantics. Reserved. See the rule at the top of this file.
+   * ---------------------------------------------------------------- */
+  --color-warn: #e3a13f;
+  --color-warn-strong: #f2b862;
+  --color-warn-dim: #7a5620;
+
+  --color-danger: #d4636b;      /* desaturated: alarming, not neon           */
+  --color-danger-strong: #e8838a;
+  --color-danger-dim: #75333a;
+
+  --color-good: #4fbe8c;
+  --color-good-strong: #71d4a6;
+  --color-good-dim: #27694b;
+
+  /* Informational, non-risk. Deliberately NOT cyan and NOT amber. */
+  --color-info: #8b9fe8;
+  --color-info-strong: #a8b8f2;
+  --color-info-dim: #40497a;
+
+  /* ---------------------------------------------------------------- *
+   * Typography
+   * ---------------------------------------------------------------- */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Every changing numeral uses this stack with tabular figures. */
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono",
+    Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;        /* 11px — eyebrow labels, units              */
+  --text-2xs--line-height: 1rem;
+
+  /* ---------------------------------------------------------------- *
+   * Geometry. A two-step radius scale and nothing else: 6px for anything
+   * you can click, 10px for anything that contains things.
+   * ---------------------------------------------------------------- */
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-pill: 999px;
+
+  /* 4px base. Tailwind's default, restated so it is visible as a decision. */
+  --spacing: 0.25rem;
+
+  /* ---------------------------------------------------------------- *
+   * Elevation. Almost nothing: depth is value, shadow is only for things
+   * that genuinely float above the page.
+   * ---------------------------------------------------------------- */
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.03) inset;
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.7);
+
+  /* ---------------------------------------------------------------- *
+   * Motion. Purposeful only: a state change may fade or travel a few
+   * pixels. Numbers never animate — a reader must not wait for a value.
+   * ---------------------------------------------------------------- */
+  --ease-instrument: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 170ms;
+}
+
+/* -------------------------------------------------------------------- *
+ * Custom utilities
+ * -------------------------------------------------------------------- */
+
+/*
+ * `num` is the single highest-impact detail in this interface. Telemetry,
+ * costs, coordinates and timers are redrawn many times a second; with
+ * proportional figures the text visibly jitters as digits change width and
+ * the eye cannot hold a reading. Tabular monospace freezes the column.
+ */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Small, uppercase, tracked. Labels recede so values can be read. */
+@utility eyebrow {
+  font-size: var(--text-2xs);
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-dim);
+}
+
+/*
+ * One focus treatment for the whole system. The outline is never removed
+ * without this replacing it — an instrument you cannot drive from the
+ * keyboard is an instrument you cannot drive with gloves on.
+ */
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  &:focus-visible {
+    outline-color: var(--color-accent);
+  }
+}
+
+/* -------------------------------------------------------------------- *
+ * Base
+ * -------------------------------------------------------------------- */
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: rgb(92 200 232 / 0.3);
+    color: var(--color-ink);
+  }
+
+  /* Thin, dark, out of the way. A scrollbar is not information. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-3) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-surface-3);
+    border-radius: var(--radius-pill);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #2b3545;
+    background-clip: content-box;
+  }
+}
+
+/* -------------------------------------------------------------------- *
+ * Components that cannot be expressed as utilities.
+ *
+ * A native <input type=range> is the only slider worth shipping — it is
+ * keyboard-driven, screen-reader-announced and respects the OS for free —
+ * but its track and thumb are only reachable through vendor pseudo-
+ * elements, so its skin lives here rather than in the component file.
+ * -------------------------------------------------------------------- */
+@layer components {
+  .selene-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .selene-range:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  /* Track. The filled portion is painted by a gradient the component sets
+   * through the --fill custom property, so there is no second element to
+   * keep in sync with the value. */
+  .selene-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(
+      to right,
+      var(--color-accent) 0%,
+      var(--color-accent) var(--fill, 0%),
+      var(--color-surface-3) var(--fill, 0%),
+      var(--color-surface-3) 100%
+    );
+  }
+  .selene-range::-moz-range-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-3);
+  }
+  .selene-range::-moz-range-progress {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+  }
+
+  .selene-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-ink);
+    border: 2px solid var(--color-surface-0);
+    box-shadow: 0 0 0 1px var(--color-accent-dim);
+    transition: box-shadow var(--duration-fast) var(--ease-instrument);
+  }
+  .selene-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-pill);
+    background: var(--color-ink);
+    border: 2px solid var(--color-surface-0);
+    box-shadow: 0 0 0 1px var(--color-accent-dim);
+  }
+
+  .selene-range:hover::-webkit-slider-thumb,
+  .selene-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 0 5px rgb(92 200 232 / 0.18);
+  }
+  .selene-range:hover::-moz-range-thumb,
+  .selene-range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 0 5px rgb(92 200 232 / 0.18);
+  }
+
+  .selene-range:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-control);
+  }
+
+  /* Native select: keep the element, replace the chrome. The arrow is drawn
+   * by the component as an overlaid icon, so the native one is removed. */
+  .selene-select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: none;
+  }
+  .selene-select option {
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+  }
+}
+
+/* -------------------------------------------------------------------- *
+ * Reduced motion. Transforms and animations are removed outright rather
+ * than shortened; a vestibular trigger shortened to 20ms is still a
+ * trigger. Colour and opacity transitions are left alone because they
+ * carry state meaning and move nothing.
+ * -------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .selene-motion-rise,
+  .selene-motion-fade {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------- *
+ * The two entrance movements the system allows. Both are short, both are
+ * disabled above under reduced motion.
+ * -------------------------------------------------------------------- */
+@keyframes selene-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes selene-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes selene-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer components {
+  .selene-motion-rise {
+    animation: selene-rise var(--duration-base) var(--ease-instrument) both;
+  }
+  .selene-motion-fade {
+    animation: selene-fade var(--duration-base) var(--ease-instrument) both;
+  }
+  .selene-spin {
+    animation: selene-spin 900ms linear infinite;
+  }
+}

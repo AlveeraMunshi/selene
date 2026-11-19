@@ -16,7 +16,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
-    "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] },
     "types": ["vitest/globals"]
   },
