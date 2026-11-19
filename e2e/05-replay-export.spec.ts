@@ -179,7 +179,7 @@ test.describe('analysis and replay', () => {
         }),
       ] as [string, string],
     )
-    await page.goto('/')
+    await page.goto('./')
     await openView(page, 'Analysis')
 
     // Exactly the one sound record survives, and nothing threw on the way.

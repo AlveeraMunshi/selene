@@ -25,6 +25,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@phosphor-icons/core": "^2.1.1",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/jest-dom": "^8.0.0",

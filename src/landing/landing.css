@@ -1,0 +1,306 @@
+/*
+ * Landing page styles.
+ *
+ * Deliberately NOT built from the application's design tokens. The app's
+ * palette exists to make dense telemetry legible at a glance; a landing page
+ * has one job, which is to get a skeptical engineer to press one button. The
+ * two surfaces share an accent and nothing else.
+ *
+ * Every value below resolves to a token: type sizes to the Tailwind scale,
+ * spacing to the 2/4/8/12/16/24/32/40/48/64/80/96 ladder, radii to Tailwind's
+ * radius steps. Nothing here is a number someone liked the look of.
+ */
+
+:root {
+  /* Surfaces. Flat, never a gradient. */
+  --void: #000000;
+  --surface-1: #181818;
+  --surface-2: #1f1f1f;
+  --surface-3: #272727;
+  --line: #272727;
+  --line-soft: rgba(255, 255, 255, 0.07);
+
+  /* Ink */
+  --ink: #ffffff;
+  --ink-muted: #b4b4b4;
+  --ink-dim: #8a8a8a;
+  --ink-faint: #5e5e5e;
+
+  /* One accent, shared with the application for continuity. */
+  --accent: #5cc8e8;
+  --accent-ink: #04141a;
+  --warn: #e3a13f;
+  --good: #4fbe8c;
+
+  /* Type scale (Tailwind) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+
+  /* Spacing ladder */
+  --s-25: 2px;  --s-50: 4px;  --s-75: 8px;  --s-100: 12px;
+  --s-200: 16px; --s-300: 24px; --s-400: 32px; --s-500: 40px;
+  --s-600: 48px; --s-700: 64px; --s-800: 80px; --s-900: 96px;
+
+  /* Radii (Tailwind steps) */
+  --r-md: 6px; --r-lg: 8px; --r-xl: 12px; --r-2xl: 16px; --r-3xl: 24px;
+
+  /* One easing curve, everywhere. Mass and spring, never `ease`. */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink-muted);
+  font-family: Geist, system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  text-wrap: pretty;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { color: var(--ink); font-weight: 600; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: inherit; }
+
+/* Tabular monospace for every figure that is meant to be read as data. */
+.num {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/*
+ * ...but NOT for a figure sitting inside a sentence. Geist Mono gives the
+ * decimal point a full glyph cell, so "24.4 percent" set in a paragraph reads
+ * as "24 . 4 percent" and the eye stops on it. Standalone data keeps the
+ * monospace; prose keeps the proportional face and only borrows tabular
+ * figures, which cost nothing and stop digits jittering.
+ */
+.card p .num,
+.result-v .num,
+details p .num,
+.foot-note .num {
+  font-family: inherit;
+}
+
+.wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 var(--s-300); }
+.narrow { max-width: 680px; }
+
+/* --- skip link ---------------------------------------------------------- */
+.skip {
+  position: absolute; left: var(--s-200); top: calc(var(--s-200) * -4);
+  background: var(--accent); color: var(--accent-ink);
+  padding: var(--s-75) var(--s-100); border-radius: var(--r-md);
+  font-size: var(--text-sm); font-weight: 600; text-decoration: none;
+  transition: top 200ms var(--ease);
+}
+.skip:focus { top: var(--s-200); }
+
+/* --- nav ---------------------------------------------------------------- */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px; gap: var(--s-300);
+}
+.brand { display: flex; align-items: baseline; gap: var(--s-75); text-decoration: none; }
+.brand-mark { font-size: var(--text-base); font-weight: 600; color: var(--ink); letter-spacing: 0.08em; }
+.brand-sub { font-size: var(--text-xs); color: var(--ink-faint); }
+.nav-links { display: flex; align-items: center; gap: var(--s-300); }
+.nav-links a {
+  font-size: var(--text-sm); color: var(--ink-dim); text-decoration: none;
+  transition: color 300ms var(--ease);
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-links a:focus-visible, .btn:focus-visible, .skip:focus-visible,
+summary:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-md);
+}
+@media (max-width: 640px) { .hide-sm { display: none; } }
+
+/* --- buttons ------------------------------------------------------------ */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--s-75);
+  padding: var(--s-100) var(--s-200);
+  border-radius: var(--r-lg); border: 1px solid transparent;
+  font-size: var(--text-base); font-weight: 600; text-decoration: none;
+  cursor: pointer;
+  transition: transform 300ms var(--ease), background-color 300ms var(--ease),
+              border-color 300ms var(--ease), color 300ms var(--ease);
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: #7ad6f0; transform: translateY(-1px); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { background: var(--surface-1); border-color: var(--surface-3); }
+.btn-ghost:active { transform: scale(0.98); }
+.btn { white-space: nowrap; }
+.btn-sm { font-size: var(--text-sm); padding: var(--s-75) var(--s-100); }
+.icon { width: 1em; height: 1em; flex: none; fill: currentColor; }
+.icon-lg { width: 20px; height: 20px; }
+
+/* --- sections ----------------------------------------------------------- */
+section { padding: var(--s-900) 0; }
+@media (max-width: 720px) { section { padding: var(--s-700) 0; } }
+
+.eyebrow {
+  font-size: var(--text-xs); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: var(--s-200);
+}
+
+/* --- hero --------------------------------------------------------------- */
+.hero { padding-top: var(--s-800); padding-bottom: var(--s-700); }
+.hero h1 {
+  max-width: 680px;
+  font-size: var(--text-5xl);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  /* The one permitted gradient, and only on text. */
+  background: linear-gradient(90deg, #ffffff 0%, #9b9b9b 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+/* Deliberately NOT text-6xl. At 60px inside the 680px cap the headline takes
+   four lines and leaves "wrong" orphaned on the last one. text-5xl fits it in
+   the two lines the copy was written for. */
+@media (max-width: 520px) { .hero h1 { font-size: var(--text-4xl); } }
+/*
+ * The manual break exists to split the headline at the point the thought
+ * breaks on a wide screen. On a narrow one it fights `text-wrap: balance`:
+ * balance works per block, and a forced break makes it balance each half
+ * separately, which at 420px left "wrong" alone on a fourth line. Removing
+ * the break lets balance see the whole sentence and even out the lines.
+ */
+@media (max-width: 640px) { .hero-break { display: none; } }
+.hero p.lede {
+  max-width: 680px; margin-top: var(--s-300);
+  font-size: var(--text-lg); color: var(--ink-muted);
+}
+.hero-actions { display: flex; flex-wrap: wrap; gap: var(--s-200); margin-top: var(--s-500); }
+.proof-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-200);
+  margin-top: var(--s-400); font-size: var(--text-sm); color: var(--ink-dim);
+}
+.proof-line .dot { color: var(--ink-faint); }
+
+/* --- figures ------------------------------------------------------------ */
+figure { margin: 0; }
+.shot {
+  margin-top: var(--s-700);
+  border: 1px solid var(--line); border-radius: var(--r-2xl);
+  background: var(--surface-1); padding: var(--s-100);
+  overflow: hidden;
+}
+/* Nested radius: outer 16px minus 12px gap = 4px, which is below the
+   threshold the formula allows, so the inner image stays square. */
+.shot img { display: block; width: 100%; height: auto; border-radius: 0; }
+.shot figcaption {
+  padding: var(--s-100) var(--s-50) var(--s-25);
+  font-size: var(--text-xs); color: var(--ink-faint);
+}
+
+/* --- cards -------------------------------------------------------------- */
+.grid { display: grid; gap: var(--s-300); }
+@media (min-width: 760px) { .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 760px) { .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2xl);
+  padding: var(--s-300);
+}
+.card h3 { font-size: var(--text-lg); margin-bottom: var(--s-75); }
+.card p { font-size: var(--text-sm); color: var(--ink-dim); }
+.card .icon-wrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; margin-bottom: var(--s-200);
+  /* Nested radius: 16px outer minus 24px gap is below zero, so this uses its
+     own step rather than the formula, which only applies under a 32px gap. */
+  border-radius: var(--r-lg);
+  background: var(--surface-3); color: var(--accent);
+}
+
+/* --- steps -------------------------------------------------------------- */
+.step-n {
+  font-size: var(--text-xs); color: var(--accent);
+  letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: var(--s-75);
+}
+
+/* --- results table ------------------------------------------------------ */
+.results { border: 1px solid var(--line); border-radius: var(--r-2xl); overflow: hidden; }
+.result-row {
+  display: grid; gap: var(--s-100); padding: var(--s-300);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.result-row:last-child { border-bottom: 0; }
+@media (min-width: 760px) { .result-row { grid-template-columns: 220px minmax(0, 1fr); align-items: baseline; } }
+.result-k { font-size: var(--text-2xl); color: var(--ink); }
+.result-v { font-size: var(--text-sm); color: var(--ink-dim); }
+.result-row.negative .result-k { color: var(--warn); }
+
+/* --- tagline reveal (B11) ----------------------------------------------- */
+.tagline { max-width: 680px; font-size: var(--text-4xl); line-height: 1.2; letter-spacing: -0.01em; }
+@media (min-width: 880px) { .tagline { font-size: var(--text-5xl); } }
+.tagline .w {
+  color: rgba(255, 255, 255, 0.28);
+  transition: color 700ms var(--ease);
+}
+.tagline .w.on { color: var(--ink); }
+
+/* --- faq ---------------------------------------------------------------- */
+details {
+  border: 1px solid var(--line); border-radius: var(--r-xl);
+  background: var(--surface-1); padding: var(--s-200) var(--s-300);
+  margin-bottom: var(--s-100);
+}
+summary {
+  cursor: pointer; list-style: none; color: var(--ink);
+  font-size: var(--text-base); font-weight: 500;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-200);
+}
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: ''; width: 8px; height: 8px; flex: none;
+  border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint);
+  transform: rotate(45deg); transition: transform 300ms var(--ease);
+}
+details[open] summary::after { transform: rotate(-135deg); }
+details p { margin-top: var(--s-200); font-size: var(--text-sm); color: var(--ink-dim); }
+
+/* --- footer ------------------------------------------------------------- */
+footer { border-top: 1px solid var(--line); padding: var(--s-600) 0; }
+.foot-inner { display: flex; flex-wrap: wrap; gap: var(--s-300); justify-content: space-between; }
+footer a { font-size: var(--text-sm); color: var(--ink-dim); text-decoration: none; }
+footer a:hover { color: var(--ink); }
+.foot-note { font-size: var(--text-xs); color: var(--ink-faint); max-width: 420px; }
+
+/* --- scroll reveal (B7) ------------------------------------------------- */
+.reveal {
+  opacity: 0; transform: translateY(16px); filter: blur(6px);
+  transition: opacity 800ms var(--ease), transform 800ms var(--ease), filter 800ms var(--ease);
+}
+.reveal.in { opacity: 1; transform: none; filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  .reveal { opacity: 1; transform: none; filter: none; }
+  .tagline .w { color: var(--ink); }
+}

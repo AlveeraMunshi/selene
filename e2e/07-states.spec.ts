@@ -99,7 +99,7 @@ test('storage being unavailable is stated, and does not take the app down', asyn
     }
     Object.defineProperty(window, 'localStorage', { configurable: true, get: () => blocked })
   })
-  await page.goto('/')
+  await page.goto('./')
 
   // The planner is unaffected: nothing about placing a route touches storage.
   await expect(panel(page, 'Route preview')).toBeVisible()
@@ -132,7 +132,7 @@ test('a record that cannot be replayed to its end says so and keeps its metrics'
     ([key, payload]: [string, string]) => window.localStorage.setItem(key, payload),
     [MISSIONS_KEY, missionsEnvelope([unresolvableRecord()])] as [string, string],
   )
-  await page.goto('/')
+  await page.goto('./')
   await openView(page, 'Analysis')
 
   await expect(missionRows(page)).toHaveCount(1)

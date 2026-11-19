@@ -113,7 +113,7 @@ export async function openApp(page: Page, records: MissionRecord[] = []): Promis
     },
     [MISSIONS_KEY, records.length > 0 ? missionsEnvelope(records) : ''] as [string, string],
   )
-  await page.goto('/')
+  await page.goto('./')
   // The shell is up when the tab strip is; everything else renders under it.
   await expect(page.getByRole('tab', { name: 'Planner' })).toBeVisible()
 }

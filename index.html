@@ -1,13 +1,480 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SELENE — Autonomous Lunar Exploration Lab</title>
-    <meta name="description" content="A browser-based autonomy research platform: terrain-aware A* planning, dynamic replanning, and inspectable decision traces for a simulated lunar rover." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SELENE — autonomous lunar exploration lab</title>
+    <meta
+      name="description"
+      content="A lunar rover that plans routes with A* over a belief it builds from its own sensors, drives them across terrain it cannot fully see, and replans when the ground turns out to be worse. Runs in the browser."
+    />
+    <link rel="canonical" href="https://alveeramunshi.github.io/selene/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SELENE — autonomous lunar exploration lab" />
+    <meta
+      property="og:description"
+      content="Terrain aware A* over a belief state, dynamic replanning, and decision traces you can audit. Optimality proved against a uniform cost oracle on 160 terrains."
+    />
+    <meta property="og:image" content="https://alveeramunshi.github.io/selene/shots/mission.png" />
+    <meta property="og:url" content="https://alveeramunshi.github.io/selene/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" src="/src/landing/landing.ts"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is the rover following a path that was computed in advance?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Every route comes from an A* search run at the moment it is needed, over a belief state that is strictly poorer than the simulator's ground truth. When a hazard is discovered on the active route the search runs again."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Has SELENE been validated against real lunar data?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The terrain is procedural noise rather than elevation data, the energy model is linear in slope, the sensor is a perfect disc and the rover always knows exactly where it is. The limitations are written out in full in the research document."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <a class="skip" href="#main">Skip to content</a>
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-path" viewBox="0 0 256 256"><path d="M200,168a32.06,32.06,0,0,0-31,24H72a32,32,0,0,1,0-64h96a40,40,0,0,0,0-80H72a8,8,0,0,0,0,16h96a24,24,0,0,1,0,48H72a48,48,0,0,0,0,96h97a32,32,0,1,0,31-40Zm0,48a16,16,0,1,1,16-16A16,16,0,0,1,200,216Z"/></symbol><symbol id="i-compass-tool" viewBox="0 0 256 256"><path d="M215.12,123.64a8,8,0,1,0-14.24-7.28,79.58,79.58,0,0,1-33.08,33.5l-16.58-37.32A40,40,0,0,0,136,40.8V24a8,8,0,0,0-16,0V40.8a40,40,0,0,0-15.22,71.74L56.69,220.75a8,8,0,1,0,14.62,6.5l25.14-56.56A95.48,95.48,0,0,0,128,176a99.13,99.13,0,0,0,31.6-5.21l25.09,56.46a8,8,0,0,0,14.62-6.5l-25-56.25A95.81,95.81,0,0,0,215.12,123.64ZM128,56a24,24,0,1,1-24,24A24,24,0,0,1,128,56Zm0,104a79.52,79.52,0,0,1-25-4l16.42-36.94a39.81,39.81,0,0,0,17.2,0l16.48,37.06A83.21,83.21,0,0,1,128,160Z"/></symbol><symbol id="i-eye" viewBox="0 0 256 256"><path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z"/></symbol><symbol id="i-git-branch" viewBox="0 0 256 256"><path d="M232,64a32,32,0,1,0-40,31v17a8,8,0,0,1-8,8H96a23.84,23.84,0,0,0-8,1.38V95a32,32,0,1,0-16,0v66a32,32,0,1,0,16,0V144a8,8,0,0,1,8-8h88a24,24,0,0,0,24-24V95A32.06,32.06,0,0,0,232,64ZM64,64A16,16,0,1,1,80,80,16,16,0,0,1,64,64ZM96,192a16,16,0,1,1-16-16A16,16,0,0,1,96,192ZM200,80a16,16,0,1,1,16-16A16,16,0,0,1,200,80Z"/></symbol><symbol id="i-hand-pointing" viewBox="0 0 256 256"><path d="M196,88a27.86,27.86,0,0,0-13.35,3.39A28,28,0,0,0,144,74.7V44a28,28,0,0,0-56,0v80l-3.82-6.13A28,28,0,0,0,35.73,146l4.67,8.23C74.81,214.89,89.05,240,136,240a88.1,88.1,0,0,0,88-88V116A28,28,0,0,0,196,88Zm12,64a72.08,72.08,0,0,1-72,72c-37.63,0-47.84-18-81.68-77.68l-4.69-8.27,0-.05A12,12,0,0,1,54,121.61a11.88,11.88,0,0,1,6-1.6,12,12,0,0,1,10.41,6,1.76,1.76,0,0,0,.14.23l18.67,30A8,8,0,0,0,104,152V44a12,12,0,0,1,24,0v68a8,8,0,0,0,16,0V100a12,12,0,0,1,24,0v20a8,8,0,0,0,16,0v-4a12,12,0,0,1,24,0Z"/></symbol><symbol id="i-chart-line-up" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0V156.69l50.34-50.35a8,8,0,0,1,11.32,0L128,132.69,180.69,80H160a8,8,0,0,1,0-16h40a8,8,0,0,1,8,8v40a8,8,0,0,1-16,0V91.31l-58.34,58.35a8,8,0,0,1-11.32,0L96,123.31l-56,56V200H224A8,8,0,0,1,232,208Z"/></symbol><symbol id="i-check-circle" viewBox="0 0 256 256"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></symbol><symbol id="i-arrow-right" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></symbol><symbol id="i-github-logo" viewBox="0 0 256 256"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></symbol><symbol id="i-flask" viewBox="0 0 256 256"><path d="M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z"/></symbol><symbol id="i-crosshair" viewBox="0 0 256 256"><path d="M232,120h-8.34A96.14,96.14,0,0,0,136,32.34V24a8,8,0,0,0-16,0v8.34A96.14,96.14,0,0,0,32.34,120H24a8,8,0,0,0,0,16h8.34A96.14,96.14,0,0,0,120,223.66V232a8,8,0,0,0,16,0v-8.34A96.14,96.14,0,0,0,223.66,136H232a8,8,0,0,0,0-16Zm-96,87.6V200a8,8,0,0,0-16,0v7.6A80.15,80.15,0,0,1,48.4,136H56a8,8,0,0,0,0-16H48.4A80.15,80.15,0,0,1,120,48.4V56a8,8,0,0,0,16,0V48.4A80.15,80.15,0,0,1,207.6,120H200a8,8,0,0,0,0,16h7.6A80.15,80.15,0,0,1,136,207.6ZM128,88a40,40,0,1,0,40,40A40,40,0,0,0,128,88Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,152Z"/></symbol><symbol id="i-warning-diamond" viewBox="0 0 256 256"><path d="M128,72a8,8,0,0,1,8,8v56a8,8,0,0,1-16,0V80A8,8,0,0,1,128,72ZM116,172a12,12,0,1,0,12-12A12,12,0,0,0,116,172Zm124-44a15.85,15.85,0,0,1-4.67,11.28l-96.05,96.06a16,16,0,0,1-22.56,0h0l-96-96.06a16,16,0,0,1,0-22.56l96.05-96.06a16,16,0,0,1,22.56,0l96.05,96.06A15.85,15.85,0,0,1,240,128Zm-16,0L128,32,32,128,128,224h0Z"/></symbol></svg>
+
+    <nav class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="#top">
+          <span class="brand-mark">SELENE</span>
+          <span class="brand-sub hide-sm">autonomous lunar exploration lab</span>
+        </a>
+        <div class="nav-links">
+          <a class="hide-sm" href="#how">How it works</a>
+          <a class="hide-sm" href="#results">Results</a>
+          <a class="hide-sm" href="#faq">FAQ</a>
+          <a href="https://github.com/AlveeraMunshi/selene">Source</a>
+          <a class="btn btn-primary btn-sm" href="app/">
+            Run it
+            <svg class="icon" aria-hidden="true"><use href="#i-arrow-right" /></svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main id="main">
+      <!-- ================= HERO ================= -->
+      <section class="hero" id="top">
+        <div class="wrap">
+          <h1>A lunar rover that replans <br class="hero-break" />because the map was wrong</h1>
+          <p class="lede">
+            SELENE plans routes with A* over a belief the rover builds from its own sensors, then
+            drives them across terrain it cannot fully see. Every replan, every rejected route and
+            every number behind the choice stays open to inspection.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="app/">
+              Run the simulation
+              <svg class="icon" aria-hidden="true"><use href="#i-arrow-right" /></svg>
+            </a>
+          </div>
+          <p class="proof-line">
+            <span><span class="num">160</span> terrains, zero optimality violations</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span><span class="num">317</span> tests</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span>no account, nothing to install</span>
+          </p>
+
+          <figure class="shot reveal">
+            <img
+              src="./shots/mission.png"
+              alt="The SELENE mission view: a lunar terrain map with the rover's planned route in cyan, a lit corridor of sensed ground around the rover, telemetry on the left and a stream of autonomy decisions on the right."
+              width="1456" height="798" loading="eager" decoding="async"
+            />
+            <figcaption>
+              A mission in progress. The dark ground has never been sensed, so the planner is
+              routing through hazard it can only estimate from orbit.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ================= PROBLEM ================= -->
+      <section id="why">
+        <div class="wrap narrow">
+          <p class="eyebrow">The problem</p>
+          <h2 style="font-size: var(--text-3xl); line-height: 1.2">
+            Most planning demos cannot replan, because nothing surprises them
+          </h2>
+          <p style="margin-top: var(--s-300)">
+            Hand a planner the true hazard map and it will produce one good route and never need
+            another. The replanning, the alternatives and the explanations are then decoration:
+            there is no moment where the world disagrees with the plan.
+          </p>
+          <p style="margin-top: var(--s-200)">
+            SELENE splits the terrain into two layers. One is visible from orbit and goes into the
+            planner. One is discoverable only by the rover's own sensors, at twenty four metres,
+            and the planner is never shown it. The route is built from the first layer and driven
+            against both, so it fails honestly and has to be rebuilt in flight.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= BENEFITS ================= -->
+      <section id="what">
+        <div class="wrap">
+          <p class="eyebrow">What it actually does</p>
+          <div class="grid grid-3 reveal">
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-eye" /></svg></span>
+              <h3>The planner is never shown the answer</h3>
+              <p>
+                Hazard is split into an orbital layer and a sensor only layer. A route that looked
+                clear can be invalidated at twenty four metres and has to be rebuilt against what
+                the rover now believes.
+              </p>
+            </article>
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-check-circle" /></svg></span>
+              <h3>Optimality is proved, not asserted</h3>
+              <p>
+                A* returns the exact uniform cost optimum on <span class="num">160</span> generated
+                terrains across four risk settings. Maximum cost gap <span class="num">0.0</span>,
+                while expanding <span class="num">32</span> to <span class="num">49</span> percent
+                of the oracle's nodes.
+              </p>
+            </article>
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-git-branch" /></svg></span>
+              <h3>Explanations come from the decision</h3>
+              <p>
+                Prose is generated from the structured record, never written beside it, so the
+                sentence on screen cannot drift away from the arithmetic that produced the route.
+              </p>
+            </article>
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-hand-pointing" /></svg></span>
+              <h3>The rover stops and asks</h3>
+              <p>
+                When the only feasible route exceeds the risk you set, the mission holds and offers
+                real alternatives with their real costs. The request is a value in the state, so
+                nothing blocks and the mission still replays.
+              </p>
+            </article>
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-crosshair" /></svg></span>
+              <h3>A mission replays exactly</h3>
+              <p>
+                The record stores inputs and never frames, so a replay runs the engine again from
+                the seed and reproduces the event log byte for byte. Anything that leaked a clock
+                into a decision shows up here.
+              </p>
+            </article>
+            <article class="card">
+              <span class="icon-wrap"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-chart-line-up" /></svg></span>
+              <h3>The numbers come from a benchmark</h3>
+              <p>
+                <span class="num">540</span> missions across seeds and parameter grids, medians with
+                spread, and a reproducibility gate in CI over seven fixed missions that fails on a
+                single changed digest.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAGLINE REVEAL (B11) ================= -->
+      <section>
+        <div class="wrap">
+          <p class="tagline" data-tagline>
+            Give a planner the whole map and it never has to think again. The interesting part is
+            what it does without one.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= HOW IT WORKS ================= -->
+      <section id="how">
+        <div class="wrap">
+          <p class="eyebrow">How it works</p>
+          <div class="grid grid-3 reveal">
+            <article class="card">
+              <p class="step-n">Step one</p>
+              <h3>Plan on belief</h3>
+              <p>
+                A* over an eight connected grid with four weighted terms: distance, slope, believed
+                hazard and predicted energy. Corner cutting is forbidden, and the heuristic is a
+                provable lower bound on cost per cell.
+              </p>
+            </article>
+            <article class="card">
+              <p class="step-n">Step two</p>
+              <h3>Drive and sense</h3>
+              <p>
+                The rover reveals hidden hazard inside its sensor radius as it moves, folding it
+                into the belief. Battery, distance and energy are drawn down by a model that charges
+                more for climbing than for flat ground.
+              </p>
+            </article>
+            <article class="card">
+              <p class="step-n">Step three</p>
+              <h3>Replan, or hold</h3>
+              <p>
+                A material rise in hazard on the active route triggers a new search against several
+                postures. If nothing feasible clears the risk bar, the mission holds for an operator
+                instead of guessing.
+              </p>
+            </article>
+          </div>
+
+          <figure class="shot reveal">
+            <img
+              src="./shots/intervention.png"
+              alt="The intervention panel: the mission is held, with two real alternatives shown side by side. Proceeding covers 274 metres at peak hazard 49 percent; the risk averse route covers 320 metres at peak hazard 8 percent."
+              width="1456" height="798" loading="lazy" decoding="async"
+            />
+            <figcaption>
+              A held mission. Both options are genuine planner output: forty six metres of extra
+              driving buys a six fold reduction in peak hazard.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- ================= RESULTS ================= -->
+      <section id="results">
+        <div class="wrap">
+          <p class="eyebrow">Measured, including what did not work</p>
+          <h2 style="font-size: var(--text-3xl); line-height: 1.2; max-width: 680px">
+            Results from the benchmark, not from the README
+          </h2>
+          <div class="results reveal" style="margin-top: var(--s-400)">
+            <div class="result-row">
+              <p class="result-k num">0.0</p>
+              <p class="result-v">
+                Maximum absolute cost gap between A* and a uniform cost oracle, over
+                <span class="num">160</span> terrains and four risk tolerances. Zero violations.
+                This is the claim the whole project rests on and it is a differential test, not an
+                assertion about the code.
+              </p>
+            </div>
+            <div class="result-row">
+              <p class="result-k num">&minus;51% to &minus;60%</p>
+              <p class="result-v">
+                Reduction in mean hazard from risk aware planning against a shortest distance
+                baseline, for <span class="num">0.8</span> to <span class="num">3.8</span> percent
+                more distance. Lower on <span class="num">33</span> of
+                <span class="num">33</span> paired seeds.
+              </p>
+            </div>
+            <div class="result-row negative">
+              <p class="result-k num">8 of 12</p>
+              <p class="result-v">
+                Missions completed by the risk aware planner where the distance dominant one
+                completed <span class="num">11</span> of <span class="num">12</span>. Caution costs
+                completion rate, and the distance penalty grows to
+                <span class="num">24.4</span> percent once the loop is closed.
+              </p>
+            </div>
+            <div class="result-row negative">
+              <p class="result-k num">0.2% to 0.5%</p>
+              <p class="result-v">
+                Median energy saved across the whole range of the energy preference, which makes it
+                a weak control. The cause is physical: net elevation is fixed by the endpoints and
+                the climb term is only <span class="num">12</span> to
+                <span class="num">19</span> percent of route energy.
+              </p>
+            </div>
+            <div class="result-row">
+              <p class="result-k num">317 + 29</p>
+              <p class="result-v">
+                Unit and integration tests, plus end to end tests in a real browser. Two consecutive
+                full runs produced identical results and eighty seven repeat runs found no flakes.
+              </p>
+            </div>
+          </div>
+          <p style="margin-top: var(--s-300); font-size: var(--text-sm); color: var(--ink-faint)">
+            Every figure above came from a run that was performed. The two amber rows are findings
+            that argue against the design, kept because a benchmark that only flatters the system
+            is not a benchmark.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= LIMITS ================= -->
+      <section id="limits">
+        <div class="wrap narrow">
+          <p class="eyebrow">
+            <svg class="icon" aria-hidden="true"><use href="#i-warning-diamond" /></svg>
+            What this is not
+          </p>
+          <h2 style="font-size: var(--text-2xl); line-height: 1.3">
+            This is a simulation, and the gaps are stated rather than implied
+          </h2>
+          <p style="margin-top: var(--s-300)">
+            The terrain is procedural noise, not elevation data. The energy model is linear in slope
+            with no regolith mechanics, no thermal and no regenerative braking. Hazard severity is a
+            scalar with no failure probability behind it, so a risk tolerance of
+            <span class="num">0.45</span> is not calibrated against anything physical. The sensor is
+            a perfect disc with no occlusion and no noise.
+          </p>
+          <p style="margin-top: var(--s-200)">
+            The largest departure from a real mission is that the rover always knows exactly where
+            it is. There is no localisation error at all. Fifteen more limitations are written out
+            in the research document, along with the seven measurements worth making next.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= FAQ ================= -->
+      <section id="faq">
+        <div class="wrap narrow">
+          <p class="eyebrow">Questions</p>
+          <h2 style="font-size: var(--text-3xl); line-height: 1.2; margin-bottom: var(--s-400)">
+            The things an engineer asks first
+          </h2>
+
+          <details>
+            <summary>Is the rover following a path that was computed in advance?</summary>
+            <p>
+              No. Every route comes from an A* search run at the moment it is needed, over a belief
+              state that is strictly poorer than the simulator's ground truth. When a hazard is
+              discovered on the active route, the search runs again against several cost postures
+              and the alternatives it rejected are kept so you can read them.
+            </p>
+          </details>
+          <details>
+            <summary>How do I know the explanations are not just text?</summary>
+            <p>
+              Each decision writes a structured record holding every candidate that was actually
+              evaluated, its per term costs, the selected option and the caveats. The sentence you
+              read is generated from that record, and the record is shown underneath it. A test
+              asserts that every numeral in the generated prose matches a value derived from the
+              record.
+            </p>
+          </details>
+          <details>
+            <summary>Does changing the risk setting really change anything?</summary>
+            <p>
+              Yes, and it is measured rather than claimed. On the rille crossing scenario, a risk
+              tolerance of <span class="num">0.15</span> produces a
+              <span class="num">752</span> metre route at peak hazard
+              <span class="num">0.27</span>, and <span class="num">0.85</span> produces a
+              <span class="num">483</span> metre route at peak hazard
+              <span class="num">0.75</span>. The energy preference, by contrast, barely moves the
+              route, and the results section says so.
+            </p>
+          </details>
+          <details>
+            <summary>Why is there no language model in the decision path?</summary>
+            <p>
+              Because the reasoning has to stay inspectable arithmetic. A model may one day render a
+              record more fluently, but it must never be the thing that makes the choice, or every
+              guarantee on this page becomes unenforceable. The deterministic trace is the source of
+              truth and the explanation layer sits on top of it.
+            </p>
+          </details>
+          <details>
+            <summary>How is reproducibility enforced?</summary>
+            <p>
+              Nothing in the engine may read the clock, call the global random number generator or
+              touch the DOM. Time is a tick counter and randomness is a seeded stream. A gate in CI
+              replays seven fixed missions covering six outcome classes and fails on a single
+              changed digest. The gate itself was verified by corrupting a digest and watching it
+              exit non zero.
+            </p>
+          </details>
+          <details>
+            <summary>What was hardest to get right?</summary>
+            <p>
+              Scoring the alternatives honestly. A* already returns the optimum under the mission's
+              weights, so re costing rejected routes under those same weights makes the chosen one
+              win by construction and the comparison carries no information. Selection charges a
+              term the search cannot optimise, peak hazard above tolerance, which is a maximum over
+              the path rather than a sum over steps.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need an account, or to install anything?</summary>
+            <p>
+              No. It runs entirely in the browser, saves missions to local storage on your own
+              machine, and sends nothing anywhere. The source is public and the benchmark runs from
+              a single command.
+            </p>
+          </details>
+          <details>
+            <summary>What would you build next?</summary>
+            <p>
+              Thread search effort through to the mission metrics, which currently makes every node
+              count open loop. Then characterise the one failure nobody can explain: a single seed
+              that drives a kilometre, replans seventy six times and then has no route left.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <!-- ================= FINAL CTA ================= -->
+      <section id="run">
+        <div class="wrap narrow" style="text-align: center">
+          <h2 style="font-size: var(--text-4xl); line-height: 1.15">Watch it decide</h2>
+          <p style="margin-top: var(--s-200)">
+            Pick a scenario, set a risk tolerance, and launch. Three scenarios, each built to put a
+            different kind of pressure on the planner.
+          </p>
+          <div class="hero-actions" style="justify-content: center">
+            <a class="btn btn-primary" href="app/">
+              Run the simulation
+              <svg class="icon" aria-hidden="true"><use href="#i-arrow-right" /></svg>
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/AlveeraMunshi/selene">
+              <svg class="icon" aria-hidden="true"><use href="#i-github-logo" /></svg>
+              Read the source
+            </a>
+          </div>
+          <p style="margin-top: var(--s-300); font-size: var(--text-sm); color: var(--ink-faint)">
+            No account, no install, nothing leaves your browser.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap foot-inner">
+        <div>
+          <p class="brand-mark" style="margin-bottom: var(--s-75)">SELENE</p>
+          <p class="foot-note">
+            A research prototype. Simulation results on this page are from a simulator and are not
+            claims about any real vehicle or mission.
+          </p>
+        </div>
+        <div style="display: grid; gap: var(--s-75); align-content: start">
+          <a href="app/">Run the simulation</a>
+          <a href="https://github.com/AlveeraMunshi/selene/blob/main/docs/RESEARCH.md">Research and limitations</a>
+          <a href="https://github.com/AlveeraMunshi/selene/blob/main/docs/CASE_STUDY.md">Technical case study</a>
+          <a href="https://github.com/AlveeraMunshi/selene/blob/main/docs/DECISION_LOG.md">Decision log</a>
+        </div>
+        <div style="display: grid; gap: var(--s-75); align-content: start">
+          <a href="https://github.com/AlveeraMunshi/selene">Source on GitHub</a>
+          <a href="https://github.com/AlveeraMunshi/selene/blob/main/LICENSE">MIT licence</a>
+          <p class="foot-note">
+            This site sets no cookies, runs no analytics and collects nothing, so there is no
+            privacy policy to read.
+          </p>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>
