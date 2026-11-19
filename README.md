@@ -1,5 +1,11 @@
 # SELENE
 
+**[Live demo](https://alveeramunshi.github.io/selene/app/)** ·
+**[Landing page](https://alveeramunshi.github.io/selene/)** ·
+[Research and limitations](docs/RESEARCH.md) ·
+[Case study](docs/CASE_STUDY.md) ·
+[Final report](docs/FINAL_REPORT.md)
+
 A browser-based simulation of an autonomous lunar rover that plans a route,
 drives it, discovers the ground is worse than it looked, and replans — with
 every decision inspectable as arithmetic rather than as narration.
