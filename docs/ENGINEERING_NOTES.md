@@ -846,3 +846,40 @@ it fail honestly. Risk tolerance, by contrast, swings
 the control the acceptance criterion names, and it works exactly as
 documented. There is no test for `energyPriority` in the suite, because an
 assertion that it changes the route would be asserting something false.
+
+## A counting grep that could not count, and reported a clean tree either way
+
+For most of the integration I checked the tree with:
+
+```bash
+npx tsc --noEmit 2>&1 | grep -c "error TS"
+```
+
+It returned `0` every time, including on a file carrying **four syntax errors**
+that `tsc -b` refused to build seconds later. The pattern never matched anything
+at all: `tsc` colourises its output, so the bytes on the wire are
+`…[91merror[0m[90m TS1109…` and the literal string `error TS` does not occur
+in it. Any count over coloured output is zero, forever, for every input.
+
+**The shape of the mistake is the point, not the ANSI codes.** A check whose
+failure mode is "reports success" is indistinguishable from a passing check, so
+it never asks to be looked at. It had been silently reporting a clean tree
+across every integration step.
+
+**The fix is one control, run once.** Feed the check an input it *must* flag:
+
+```bash
+echo 'export const broken: number = ;' > src/__probe.ts
+npx tsc --noEmit --pretty false 2>&1 | grep -c "error TS"   # must print >= 1
+rm src/__probe.ts
+```
+
+A control that prints `0` means the check is broken, whatever the real tree
+says. `--pretty false` is the durable fix here; validating against a known
+positive is the durable habit, and it is the same discipline the benchmark gate
+needed — a reproducibility gate only ever seen to pass is equally untested, so
+that one was verified by corrupting a golden digest and watching it exit 1.
+
+The conclusion drawn from the broken check happened to be right: the tree really
+was clean, confirmed afterwards with a validated command. That is luck, and it
+is why the habit has to be mechanical rather than triggered by suspicion.

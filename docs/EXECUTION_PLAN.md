@@ -40,10 +40,10 @@ something, not that an agent reported success.
 | 1.9 | Store, three views, app shell | E | `src/state/**`, `src/views/**` | done |
 | 2.1 | Seam reconciliation and full typecheck | orch | — | **verified** — 0 type errors across 55 files |
 | 2.2 | Production build | orch | `dist/` | **verified** — 296 tests, build 264ms |
-| 3.1 | Unit, component and e2e suites | F | `tests/**`, `e2e/**` | pending |
-| 3.2 | Benchmark harness and research writeup | G | `bench/**`, `docs/RESEARCH.md` | pending |
+| 3.1 | Unit, component and e2e suites | F | `tests/**`, `e2e/**` | **verified** — 317 unit, 29 e2e, 2 runs identical |
+| 3.2 | Benchmark harness and research writeup | G | `bench/**`, `docs/RESEARCH.md` | **verified** — gate fails on corrupt golden, 160-terrain check reproduced |
 | 4.1 | Browser verification | orch | screenshots | **verified** — 3 layout/unit bugs found and fixed |
-| 4.2 | README and case study | G | `README.md`, `docs/CASE_STUDY.md` | pending |
+| 4.2 | README and case study | G | `README.md`, `docs/CASE_STUDY.md` | done — README, research, case study, final report |
 | 4.3 | Reusable skills distilled to project-builder | orch | external repo | done — 6 skills, gate passed |
 
 ## Integration policy
