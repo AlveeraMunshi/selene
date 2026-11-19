@@ -59,7 +59,7 @@ export function AnalysisView() {
         persistenceAvailable={persistenceAvailable}
       />
 
-      <div className="grid min-h-0 content-start gap-3 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
+      <div className="grid min-h-0 auto-rows-min grid-cols-[minmax(0,1fr)] content-start gap-3 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
         {!selected ? (
           <Panel>
             <EmptyState

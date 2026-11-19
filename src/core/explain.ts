@@ -223,6 +223,12 @@ export function explainDecision(d: DecisionRecord): string {
   return parts.join(' ')
 }
 
+/** Ensure a generated fragment ends in exactly one terminal stop. */
+function endWithStop(text: string): string {
+  const t = text.trimEnd()
+  return /[.!?]$/.test(t) ? t : `${t}.`
+}
+
 function joinList(items: string[]): string {
   if (items.length === 0) return ''
   if (items.length === 1) return items[0]
@@ -270,7 +276,13 @@ export function explainIntervention(r: InterventionRequest): string {
       const cost = o.route ? ` (${metres(o.route.distanceM)}, peak hazard ${num(o.route.peakHazard)})` : ''
       return `"${o.label}"${cost}: ${o.detail}`
     })
-    parts.push(`Options — ${joinList(opts)}.`)
+    // Each option's `detail` is already a complete sentence, so these are
+    // joined as sentences rather than as a list. Running them through
+    // joinList() produced "...104.1 Wh., \"Take the risk-averse route\"..."
+    // and "...next one. and \"Abort the mission\"...": one fragment ends a
+    // sentence while the joiner is still building a clause. Exactly one place
+    // may own terminal punctuation, and for a sentence that is the sentence.
+    parts.push(`Options — ${opts.map(endWithStop).join(' ')}`)
   }
   return parts.join(' ')
 }

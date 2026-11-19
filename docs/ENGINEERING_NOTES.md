@@ -455,3 +455,57 @@ Typing the tooltip against the three fields it actually reads — `active`,
 the inference and more honest about the component's real contract. Worth
 reaching for sooner than I did: a library's generic prop type is not
 automatically the right type for your own component.
+
+## Two grid blowouts that hid a whole panel, and neither threw anything
+
+Found by opening the app in a browser after wave 1. Typecheck was clean, 296
+tests passed, the production build succeeded, and three agents had each
+verified their own files. Nobody had looked at a pixel, and the planner was
+losing an entire panel off the right edge of the screen.
+
+### 1. A grid item will not shrink below its content
+
+The rail was 340px wide and correct. The `<Panel>` inside it measured **467px**
+and ran to x=1567 in a 1456px viewport — and because the ancestor clipped rather
+than scrolled, `document.scrollWidth === clientWidth`, so **the usual overflow
+check reported no overflow**. 105 elements were off-screen and the page looked
+calm.
+
+A grid item's `min-width` computes to `auto`, which means *min-content*: the
+item refuses to shrink below the widest thing in it, and happily overflows its
+track instead. The outer three-column grid already guarded against this with
+`grid-cols-[320px_minmax(0,1fr)_340px]` — the `minmax(0,...)` idiom exists for
+exactly this — but the single-column rails inside it did not, and a nested grid
+needs the same guard as the outer one.
+
+The detection that works, since `scrollWidth` does not: walk every element and
+compare `getBoundingClientRect().right` against `clientWidth`.
+
+### 2. `min-h-0` on the item lets the rows collapse and then equalise
+
+With the width fixed, the four panels still overlapped. The rail reported
+`grid-template-rows: 167.75px 167.75px 167.75px 167.75px` while the panels
+needed 442, 555, 242 and 169 — every row forced to an identical
+`(719 - 3*16) / 4`, with `overflow: visible` spilling the excess over the panel
+below.
+
+`align-content: start` does **not** fix it; setting it changed nothing. The
+cause is one step away: each `Panel` carries `min-h-0` (correct, and necessary
+for its own internal scrolling), which drops each row's min-content contribution
+to zero. Four rows that may each be zero, inside a container with a definite
+height, get the height split equally between them. The fix is to size the rows
+by their content — `grid-auto-rows: min-content` — after which the rail's
+content legitimately exceeds its height and the `overflow-y-auto` that was
+already there starts doing its job.
+
+**What this pair is really about.** Both bugs are a parent correctly sized and a
+child that declines to fit, and in both the symptom is silent: no error, no
+console warning, no failing test, and in the first case not even a scrollbar.
+The panel that vanished was the cost breakdown — the one piece of UI that
+demonstrates the planner is real. A build can be green in every automated sense
+and still be shipping a blank space where its best feature was.
+
+The cheap check, worth running once per layout: count elements whose right edge
+exceeds the viewport, and compare each flex/grid child's `scrollHeight` against
+its laid-out `height`. Both are a few lines in the console and both find this
+class of fault instantly.

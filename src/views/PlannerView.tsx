@@ -99,7 +99,7 @@ export function PlannerView({ onLaunched }: PlannerViewProps) {
 
   return (
     <div className="grid h-full gap-4 overflow-y-auto p-4 min-[1100px]:grid-cols-[320px_minmax(0,1fr)_340px] min-[1100px]:overflow-hidden">
-      <div className="grid content-start gap-4 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
+      <div className="grid auto-rows-min grid-cols-[minmax(0,1fr)] content-start gap-4 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
         <ScenarioPicker selectedId={config.scenarioId} onSelect={actions.setScenario} />
         <WaypointList
           start={config.start}
@@ -117,7 +117,7 @@ export function PlannerView({ onLaunched }: PlannerViewProps) {
         </MapCanvas>
       </div>
 
-      <div className="grid content-start gap-4 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
+      <div className="grid auto-rows-min grid-cols-[minmax(0,1fr)] content-start gap-4 min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
         <RoutePreviewPanel preview={preview} pending={pending} error={error} config={config} />
         <MissionParameters
           config={config}
