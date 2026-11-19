@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { Cell } from '@/core/types'
 import type { RenderOptions } from '@/render/scene'
 import { plannerDisplayState } from '@/lib/plannerState'
+import { useMissionStore } from '@/state/missionStore'
 import {
   useConfig,
   useConfigActions,
@@ -32,7 +33,19 @@ import { RoutePreviewPanel } from './planner/RoutePreviewPanel'
 import { RoverSpecPanel } from './planner/RoverSpecPanel'
 import { WaypointList, type MapClickMode } from './planner/WaypointList'
 
-export function PlannerView() {
+export interface PlannerViewProps {
+  /**
+   * Called after a successful launch, so the shell can move the operator to
+   * the mission it just started.
+   *
+   * A callback rather than the shell watching `status`: a supervised mission
+   * opens PAUSED, waiting for approval of its first route, so "status became
+   * running" never fires for the common case.
+   */
+  onLaunched?: () => void
+}
+
+export function PlannerView({ onLaunched }: PlannerViewProps) {
   const config = useConfig()
   const actions = useConfigActions()
   const { preview, pending, error } = usePreview()
@@ -42,6 +55,13 @@ export function PlannerView() {
   // Which thing a map click places. Local because it is a tool selection, not
   // mission state — it does not belong in a MissionRecord.
   const [clickMode, setClickMode] = useState<MapClickMode>('waypoint')
+
+  const handleLaunch = useCallback(() => {
+    actions.launch()
+    // The store refuses to launch an invalid config, so only report a launch
+    // that actually produced a mission.
+    if (useMissionStore.getState().state !== null) onLaunched?.()
+  }, [actions, onLaunched])
 
   const handleCellClick = useCallback(
     (cell: Cell) => {
@@ -112,7 +132,7 @@ export function PlannerView() {
           seed={config.seed}
           onSeed={actions.setSeed}
           validity={validity}
-          onLaunch={actions.launch}
+          onLaunch={handleLaunch}
           missionInProgress={missionInProgress}
         />
       </div>

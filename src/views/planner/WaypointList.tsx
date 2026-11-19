@@ -6,6 +6,8 @@
  * second leg.
  */
 
+import type { ReactNode } from 'react'
+
 import type { Cell } from '@/core/types'
 import { Badge, Button, cn, EmptyState, Panel } from '@/ui'
 import { fmtCell } from '@/lib/format'
@@ -46,8 +48,8 @@ export function WaypointList({
       <div className="grid gap-3">
         <div
           role="radiogroup"
-          aria-label="Map click places"
-          className="flex rounded-md border border-neutral-800 p-0.5"
+          aria-label="What a map click places"
+          className="flex rounded-control border border-line p-0.5"
         >
           <ModeButton
             active={mode === 'waypoint'}
@@ -66,17 +68,17 @@ export function WaypointList({
         </div>
 
         <ol className="grid gap-1.5">
-          <li className="flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900/40 px-2.5 py-1.5">
-            <Badge variant="outline">Start</Badge>
-            <span className="font-mono text-xs text-neutral-400">{fmtCell(start)}</span>
+          <li className="flex items-center gap-2 rounded-control border border-line bg-surface-2 px-2.5 py-1.5">
+            <Badge tone="info">Start</Badge>
+            <span className="num text-2xs text-ink-muted">{fmtCell(start)}</span>
           </li>
           {waypoints.map((wp, i) => (
             <li
               key={`${wp.x},${wp.y},${i}`}
-              className="flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900/40 px-2.5 py-1.5"
+              className="flex items-center gap-2 rounded-control border border-line bg-surface-2 px-2.5 py-1.5"
             >
-              <Badge>{i + 1}</Badge>
-              <span className="font-mono text-xs text-neutral-400">{fmtCell(wp)}</span>
+              <Badge mono>{i + 1}</Badge>
+              <span className="num text-2xs text-ink-muted">{fmtCell(wp)}</span>
               <span className="grow" />
               <Button
                 variant="ghost"
@@ -93,8 +95,9 @@ export function WaypointList({
 
         {waypoints.length === 0 ? (
           <EmptyState
+            compact
             title="No waypoints"
-            description="The mission needs at least one. Click anywhere on the map to add the first."
+            body="The mission needs at least one. Click anywhere on the map to add the first."
           />
         ) : null}
       </div>
@@ -111,7 +114,7 @@ function ModeButton({
   active: boolean
   disabled?: boolean
   onClick: () => void
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <button
@@ -121,9 +124,9 @@ function ModeButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'grow rounded px-2.5 py-1 text-xs font-medium transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500',
-        active ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200',
+        'focus-ring grow rounded-control px-2.5 py-1 text-2xs font-medium',
+        'transition-colors duration-[var(--duration-fast)]',
+        active ? 'bg-surface-3 text-ink' : 'text-ink-dim hover:text-ink-muted',
         disabled && 'cursor-not-allowed opacity-50',
       )}
     >

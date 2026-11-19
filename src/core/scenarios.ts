@@ -14,7 +14,7 @@ import type { RoverSpec, Scenario } from './types'
 /**
  * The reference rover.
  *
- * NOTE ON `idleW`: the field is named for watts but `types.ts` documents it as
+ * NOTE ON `idleWhPerS`: the field is named for watts but `types.ts` documents it as
  * "watt-hours per second", and the doc comment is what the engine follows.
  * 0.02 Wh/s is 72 W of avionics — a plausible bus load, and small enough next
  * to traction that motion dominates the energy budget, which is what makes
@@ -32,7 +32,7 @@ export const DEFAULT_ROVER: RoverSpec = {
   flatWhPerM: 0.35,
   climbWhPerMPerDeg: 0.02,
   sensorRangeCells: 6,
-  idleW: 0.02,
+  idleWhPerS: 0.02,
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -46,7 +46,7 @@ export const SCENARIOS: Scenario[] = [
     width: 96,
     height: 96,
     seed: 20260419,
-    start: { x: 8, y: 88 },
+    start: { x: 4, y: 88 },
     suggestedWaypoints: [
       { x: 52, y: 44 },
       { x: 88, y: 10 },
@@ -55,8 +55,12 @@ export const SCENARIOS: Scenario[] = [
       octaves: 4,
       relief: 36,
       craters: 7,
-      orbitalVisibility: 0.92,
-      hiddenHazardDensity: 0.03,
+      // 0.97 visibility over 1.5% of the map caps any hidden surprise at
+      // ~0.03 severity, which is below the engine's materiality threshold —
+      // so this scenario can still *discover* things without that discovery
+      // invalidating a route. Measured: 0 replans.
+      orbitalVisibility: 0.97,
+      hiddenHazardDensity: 0.015,
       rubbleFields: 4,
     },
   },
@@ -90,7 +94,11 @@ export const SCENARIOS: Scenario[] = [
       'Dense rubble between start and goal creates two genuinely different homotopy classes. Moving riskTolerance from low to high flips the selected route between the safe detour and the direct corridor, with a measurable difference in distance and peak hazard.',
     width: 96,
     height: 96,
-    seed: 31415927,
+    // Seed chosen by sweeping 400 seeds for the widest gap between the
+    // low-tolerance and high-tolerance routes; see docs/ENGINEERING_NOTES.md.
+    // Measured at this seed: riskTolerance 0.15 routes 752 m at peak hazard
+    // 0.27, riskTolerance 0.90 routes 490 m at peak hazard 0.75.
+    seed: 16,
     start: { x: 8, y: 8 },
     suggestedWaypoints: [{ x: 88, y: 88 }],
     terrain: {
@@ -99,7 +107,10 @@ export const SCENARIOS: Scenario[] = [
       craters: 11,
       orbitalVisibility: 0.85,
       hiddenHazardDensity: 0.05,
-      rubbleFields: 9,
+      // 14 rubble fields is what reliably produces a near-complete barrier
+      // with one risky gap in it; at 9 the map was porous and both tolerance
+      // settings found essentially the same corridor.
+      rubbleFields: 14,
     },
   },
 ]

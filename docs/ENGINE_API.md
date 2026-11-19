@@ -61,6 +61,9 @@ export interface RenderOptions {
   showAbandoned: boolean; hoverCell: Cell | null; selectedCell: Cell | null
 }
 export function createRenderer(canvas: HTMLCanvasElement): Renderer
+// AMENDED after wave 1: the React hook shipped positional, without pointer
+// callbacks. Pointer wiring lives in the view, which resolves through cellAt.
+//   useRenderer(state, opts, config?) => { canvasRef, cellAt }
 export interface Renderer {
   draw(state: SimState, opts: RenderOptions, alpha: number): void
   resize(cssW: number, cssH: number): void

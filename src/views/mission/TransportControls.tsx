@@ -1,17 +1,17 @@
 /**
  * Playback transport.
  *
- * The step-once control exists because the interesting moments in a mission
- * last one tick — a hazard appearing under the route, a replan firing — and
- * at 2 Hz they are gone before you can read them.
+ * Step-once exists because the interesting moments in a mission last one tick
+ * -- a hazard appearing under the route, a replan firing -- and at 2 Hz they
+ * are gone before you can read them.
  *
  * Every button's disabled state comes from the store's own view of what is
  * possible, so the UI cannot offer Play on a mission that is waiting for an
  * operator answer.
  */
 
-import { SPEEDS, type Speed } from '@/state/defaults'
 import { Badge, Button, Select } from '@/ui'
+import { SPEEDS, type Speed } from '@/state/defaults'
 import { fmtMultiplier } from '@/lib/format'
 import type { PlaybackSlice } from '@/state/selectors'
 
@@ -23,7 +23,7 @@ export interface TransportControlsProps {
   onReset: () => void
   onAbort: () => void
   onSpeed: (speed: Speed) => void
-  /** Replay takes over the map, so live transport is meaningless then. */
+  /** Replay drives the map from the scrubber, so live transport is inert. */
   replaying: boolean
 }
 
@@ -39,18 +39,18 @@ export function TransportControls({
   onSpeed,
   replaying,
 }: TransportControlsProps) {
-  const running = playback.status === 'running'
-
   if (replaying) {
     return (
       <div className="flex items-center gap-2">
-        <Badge variant="outline">Replay</Badge>
-        <span className="text-xs text-neutral-500">
-          Transport is driven by the scrubber in Analysis.
+        <Badge tone="info">Replay</Badge>
+        <span className="text-2xs text-ink-dim">
+          The map is showing a saved mission. Transport is the scrubber in Analysis.
         </span>
       </div>
     )
   }
+
+  const running = playback.status === 'running'
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -59,7 +59,6 @@ export function TransportControls({
         size="sm"
         onClick={running ? onPause : onPlay}
         disabled={!running && !playback.canPlay}
-        // Space is bound to this; say so once rather than in a legend.
         title={running ? 'Pause (space)' : 'Play (space)'}
       >
         {running ? 'Pause' : 'Play'}
@@ -74,9 +73,10 @@ export function TransportControls({
       <div className="ml-auto flex items-center gap-2">
         <Select
           value={String(playback.speed)}
-          onChange={(v: string) => onSpeed(Number(v) as Speed)}
+          onChange={(v) => onSpeed(Number(v) as Speed)}
           options={SPEED_OPTIONS}
           aria-label="Playback speed"
+          className="w-20"
         />
         <Button
           variant="danger"

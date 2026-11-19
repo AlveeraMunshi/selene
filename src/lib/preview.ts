@@ -158,7 +158,12 @@ export function computePreview(config: MissionConfig): RoutePreview | null {
   let from = config.start
   for (let i = 0; i < config.waypoints.length; i++) {
     const to = config.waypoints[i]
-    const result = plan({ belief: env.belief, start: from, goal: to, weights, constraints })
+    // The rover is passed explicitly: `plan` otherwise falls back to
+    // DEFAULT_ROVER, and the preview must use the spec this mission will fly.
+    const result = plan(
+      { belief: env.belief, start: from, goal: to, weights, constraints },
+      config.rover,
+    )
     legs.push({ from, to, waypointIndex: i, result })
     nodesExpanded += result.stats.nodesExpanded
     elapsedMs += result.stats.elapsedMs

@@ -43,7 +43,7 @@ import type {
   MissionRecord,
   SimState,
 } from '@/core/types'
-import type { RenderOptions } from '@/render/scene'
+import type { RenderOptions } from '@/render'
 
 import { downloadJson, slugify } from '@/lib/download'
 import { newMissionId, nowIso } from '@/lib/ids'
@@ -53,7 +53,7 @@ import { isPersistenceAvailable, readJson, STORAGE_KEYS, writeJson } from '@/lib
 
 import {
   BASE_TICK_HZ,
-  DEFAULT_RENDER_OPTIONS,
+  INITIAL_RENDER_OPTIONS,
   defaultConfigFor,
   firstScenario,
   type Speed,
@@ -65,8 +65,17 @@ export interface ReplayView {
   session: ReplaySession
   /** Tick the scrubber is parked on. */
   tick: number
-  /** State at that tick; what the map renders during replay. */
+  /** State at that tick; what the analysis map renders. */
   state: SimState
+  /**
+   * Whether the replay has taken over the MISSION view's map.
+   *
+   * Selecting a record in Analysis has to reconstruct it -- the chart and the
+   * scrubber both need the frames -- but silently replacing whatever the
+   * operator is watching on the Mission tab would be hostile. So building the
+   * session and driving the live map are two separate things.
+   */
+  active: boolean
 }
 
 export interface MissionStore {
@@ -170,6 +179,23 @@ export function disposeMissionStore(): void {
   cancelPreview()
 }
 
+/**
+ * Plan the opening preview.
+ *
+ * WHY THIS IS AN EXPLICIT CALL AND NOT DONE AT STORE CREATION: the store
+ * starts with a scenario and its suggested waypoints already configured, so
+ * there IS something to preview before the user touches anything -- and
+ * every other preview is triggered by a config setter, which means without
+ * this the planner sits on "Planning" forever until a slider is moved. It is
+ * a call rather than a module side effect so that importing the store does
+ * not generate terrain in a test or on a server.
+ *
+ * Idempotent: running it twice only re-plans, and React's StrictMode will.
+ */
+export function initMissionStore(): void {
+  useMissionStore.getState().previewRoute()
+}
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -188,11 +214,11 @@ function loadSavedMissions(): MissionRecord[] {
 
 function loadRenderOptions(): RenderOptions {
   const saved = readJson<Partial<RenderOptions> | null>(STORAGE_KEYS.renderOptions, null)
-  if (!saved || typeof saved !== 'object') return DEFAULT_RENDER_OPTIONS
+  if (!saved || typeof saved !== 'object') return INITIAL_RENDER_OPTIONS
   // Merge rather than replace: a stored object from an older build is missing
   // whichever layer was added since, and `undefined` would read as "off".
   return {
-    ...DEFAULT_RENDER_OPTIONS,
+    ...INITIAL_RENDER_OPTIONS,
     ...saved,
     hoverCell: null,
     selectedCell: null,
@@ -395,16 +421,32 @@ export const useMissionStore = create<MissionStore>()((set, get) => {
       if (config.waypoints.length === 0) return
       stopTicker()
       const state = createSimulation(config)
+
+      // A SUPERVISED MISSION IS ALREADY WAITING BEFORE THE FIRST TICK.
+      // `createSimulation` plans the opening route and, under supervised
+      // autonomy, raises an approval request for it -- so the state comes
+      // back at tick 0 with `pendingIntervention` set and the rover in
+      // `awaiting-approval`. Starting the clock anyway would show "running"
+      // for half a second before the first tick discovered the request and
+      // paused, which is exactly the "mission silently stopped" confusion
+      // the intervention panel exists to prevent.
+      if (state.outcome !== null) {
+        set({ state, metrics: null, selectedDecisionId: null, replay: null })
+        finalize(state)
+        return
+      }
+
+      const waiting = state.pendingIntervention !== null
       set({
         state,
-        status: 'running',
+        status: waiting ? 'paused' : 'running',
         metrics: null,
         selectedDecisionId: null,
         // A new live mission takes the map back from any replay that was
-        // being scrubbed, otherwise the canvas shows two missions at once.
+        // being scrubbed, otherwise the canvas would show two missions.
         replay: null,
       })
-      startTicker()
+      if (!waiting) startTicker()
     },
 
     play() {
@@ -477,27 +519,45 @@ export const useMissionStore = create<MissionStore>()((set, get) => {
     },
 
     loadRecord(missionId) {
-      const record = get().missions.find((m) => m.missionId === missionId)
+      const { missions, replay } = get()
+      const record = missions.find((m) => m.missionId === missionId)
       if (!record) return
-      set({ selectedMissionId: missionId, replay: null, selectedDecisionId: null })
-    },
-
-    startReplay(missionId) {
-      const record = get().missions.find((m) => m.missionId === missionId)
-      if (!record) return
-      // Replay drives the same renderer as a live mission, so a live mission
-      // must not be ticking underneath it.
-      stopTicker()
+      // Already reconstructed: re-selecting the same mission must not pay for
+      // a second re-simulation.
+      if (replay && replay.session.record.missionId === missionId) {
+        set({ selectedMissionId: missionId, selectedDecisionId: null })
+        return
+      }
       let session: ReplaySession
       try {
         session = buildReplaySession(record)
       } catch {
-        set({ replay: null })
+        // A record the engine cannot replay is still worth listing; the view
+        // shows its stored metrics and says the reconstruction failed.
+        set({ selectedMissionId: missionId, replay: null, selectedDecisionId: null })
         return
       }
       set({
         selectedMissionId: missionId,
-        replay: { session, tick: session.totalTicks, state: session.finalState },
+        selectedDecisionId: null,
+        // Parked at the end, because the first question asked of a finished
+        // mission is what happened to it.
+        replay: { session, tick: session.totalTicks, state: session.finalState, active: false },
+      })
+    },
+
+    startReplay(missionId) {
+      const { replay } = get()
+      if (!replay || replay.session.record.missionId !== missionId) {
+        get().loadRecord(missionId)
+      }
+      const next = get().replay
+      if (!next) return
+      // The replay drives the same renderer as a live mission, so a live
+      // mission must not be ticking underneath it.
+      stopTicker()
+      set({
+        replay: { ...next, active: true },
         status: get().status === 'running' ? 'paused' : get().status,
       })
     },
@@ -512,7 +572,11 @@ export const useMissionStore = create<MissionStore>()((set, get) => {
     },
 
     stopReplay() {
-      set({ replay: null })
+      const { replay } = get()
+      if (!replay) return
+      // Keep the session: the chart and the scrubber still need it, and
+      // rebuilding it on the next click would re-simulate the whole mission.
+      set({ replay: { ...replay, active: false } })
     },
 
     exportRecord(missionId) {
@@ -527,12 +591,10 @@ export const useMissionStore = create<MissionStore>()((set, get) => {
     setRenderOption(key, value) {
       const renderOptions = { ...get().renderOptions, [key]: value }
       set({ renderOptions })
-      // Persist only the layer preferences; hover and selection are transient
-      // and writing them would hit localStorage on every mouse move.
-      const { hoverCell: _h, selectedCell: _s, ...persistable } = renderOptions
-      void _h
-      void _s
-      writeJson(STORAGE_KEYS.renderOptions, persistable)
+      // Persist only the layer preferences. Hover and selection are
+      // transient, and they are also the two that change on every mouse
+      // move -- writing them would hit localStorage at pointer rate.
+      writeJson(STORAGE_KEYS.renderOptions, { ...renderOptions, hoverCell: null, selectedCell: null })
     },
 
     selectDecision(decisionId) {

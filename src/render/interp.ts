@@ -60,10 +60,17 @@ export function lerpAngle(a: number, b: number, t: number): number {
   return a + d * clamp01(t)
 }
 
-/** Normalise an angle into [0, TAU). */
+/**
+ * Normalise an angle into [0, TAU).
+ *
+ * The second guard is not redundant: for a tiny negative input, `m + TAU`
+ * rounds to exactly TAU in double precision, which is outside the half-open
+ * range this function promises and breaks any caller comparing against it.
+ */
 export function normalizeAngle(a: number): number {
   const m = a % TAU
-  return m < 0 ? m + TAU : m
+  const n = m < 0 ? m + TAU : m
+  return n >= TAU ? 0 : n
 }
 
 /** The continuous part of the rover's state: everything safe to interpolate. */

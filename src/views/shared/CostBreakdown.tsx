@@ -1,13 +1,13 @@
 /**
- * The four cost terms of a route, with their share of the total.
+ * The four cost terms of a route, with each term's share of the total.
  *
  * WHY A SHARED COMPONENT: the same breakdown appears in the pre-launch
  * preview and against every candidate in the decision inspector, and the
- * whole point of carrying `CostBreakdown` on a route is that the user can
- * compare those two places term by term. Two renderings would defeat it.
+ * whole point of carrying `CostBreakdown` on a route is that those two places
+ * can be compared term by term. Two renderings would defeat it.
  *
- * The only arithmetic here is `term / total`, which is a restatement of
- * numbers the cost model produced rather than a new metric.
+ * The only arithmetic here is `term / total`, a restatement of numbers the
+ * cost model produced rather than a new metric.
  */
 
 import type { CostBreakdown as CostBreakdownValue } from '@/core/types'
@@ -24,14 +24,14 @@ const TERMS: { key: keyof Omit<CostBreakdownValue, 'total'>; label: string }[] =
 export interface CostBreakdownProps {
   cost: CostBreakdownValue
   className?: string
-  /** Compact drops the share bars; used inside a dense candidate list. */
+  /** Drops the share bars for a dense candidate list. */
   compact?: boolean
 }
 
 export function CostBreakdown({ cost, className, compact }: CostBreakdownProps) {
   const total = cost.total
-  // A zero or negative total would make every share meaningless; show the
-  // absolute terms and no bars rather than dividing by it.
+  // A zero or negative total makes every share meaningless; show the absolute
+  // terms and no bars rather than dividing by it.
   const shareable = Number.isFinite(total) && total > 0
 
   return (
@@ -41,24 +41,20 @@ export function CostBreakdown({ cost, className, compact }: CostBreakdownProps) 
         const share = shareable ? value / total : 0
         return (
           <div key={key} className="grid gap-1">
-            <div className="flex items-baseline justify-between gap-3 text-xs">
-              <span className="text-neutral-400">{label}</span>
-              <span className="font-mono tabular-nums text-neutral-300">
+            <div className="flex items-baseline justify-between gap-3 text-2xs">
+              <span className="text-ink-dim">{label}</span>
+              <span className="num text-ink-muted">
                 {fmtCost(value)}
-                {shareable ? (
-                  <span className="ml-2 text-neutral-500">{fmtPercent(share)}</span>
-                ) : null}
+                {shareable ? <span className="ml-2 text-ink-faint">{fmtPercent(share)}</span> : null}
               </span>
             </div>
-            {!compact && shareable ? <Meter value={share} /> : null}
+            {!compact && shareable ? <Meter value={share} showPct={false} /> : null}
           </div>
         )
       })}
-      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-neutral-800 pt-2 text-xs">
-        <span className="font-medium text-neutral-300">Total cost</span>
-        <span className="font-mono tabular-nums font-medium text-neutral-100">
-          {fmtCost(total)}
-        </span>
+      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2 text-2xs">
+        <span className="font-medium text-ink-muted">Total cost</span>
+        <span className="num font-medium text-ink">{fmtCost(total)}</span>
       </div>
     </div>
   )

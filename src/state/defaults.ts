@@ -7,7 +7,7 @@
  */
 
 import { DEFAULT_ROVER, SCENARIOS } from '@/core/scenarios'
-import type { RenderOptions } from '@/render/scene'
+import { DEFAULT_RENDER_OPTIONS as RENDERER_DEFAULTS, type RenderOptions } from '@/render'
 import type { MissionConfig, Scenario } from '@/core/types'
 
 /** Playback multipliers offered by the transport control. */
@@ -47,14 +47,17 @@ export function firstScenario(): Scenario {
   return s
 }
 
-export const DEFAULT_RENDER_OPTIONS: RenderOptions = {
-  showElevation: true,
+/**
+ * What the map looks like before the user touches anything.
+ *
+ * Built from the renderer's own defaults rather than restated, so a layer
+ * added by Agent D arrives switched to whatever they chose. Slope is the one
+ * override: elevation and slope read as the same shaded relief at a glance,
+ * and showing both at once makes the hazard layer hard to pick out.
+ */
+export const INITIAL_RENDER_OPTIONS: RenderOptions = {
+  ...RENDERER_DEFAULTS,
   showSlope: false,
-  showHazard: true,
-  showObserved: true,
-  showPlannedRoute: true,
-  showTrail: true,
-  showAbandoned: true,
   // Hover and selection are per-canvas interaction state, not a saved
   // preference; the store keeps them null and the map merges its own.
   hoverCell: null,

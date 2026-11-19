@@ -89,16 +89,30 @@ function selected(d: DecisionRecord): RouteCandidate | null {
   return d.candidates.find((c) => c.id === d.selectedId) ?? null
 }
 
-/** The cheapest candidate that was NOT selected, which is what the selected
- *  one actually beat. Comparing against an arbitrary other candidate would
- *  overstate the margin. */
-function runnerUp(d: DecisionRecord): RouteCandidate | null {
-  let best: RouteCandidate | null = null
+/**
+ * The alternative the selected route is worth comparing against.
+ *
+ * Not simply the cheapest rejected candidate: two postures routinely return
+ * the IDENTICAL path (on open ground "current preferences" and "most direct"
+ * usually agree), and comparing against an identical twin produces the
+ * truthful but useless sentence "it was within rounding on every measure"
+ * while a genuinely different alternative sits one row further down.
+ *
+ * So: the cheapest rejected candidate that differs MATERIALLY from the
+ * selected one, falling back to the cheapest rejected candidate when every
+ * posture agreed — in which case "within rounding" is the right thing to say.
+ */
+function runnerUp(d: DecisionRecord, sel: RouteCandidate | null): RouteCandidate | null {
+  let cheapest: RouteCandidate | null = null
+  let differing: RouteCandidate | null = null
   for (const c of d.candidates) {
     if (c.id === d.selectedId || c.route === null) continue
-    if (best === null || c.route.cost.total < best.route!.cost.total) best = c
+    if (cheapest === null || c.route.cost.total < cheapest.route!.cost.total) cheapest = c
+    if (sel && comparisonClauses(sel, c).length > 0) {
+      if (differing === null || c.route.cost.total < differing.route!.cost.total) differing = c
+    }
   }
-  return best
+  return differing ?? cheapest
 }
 
 /**
@@ -164,7 +178,7 @@ export function explainDecision(d: DecisionRecord): string {
         ? `Of ${d.candidates.length} routes evaluated (${planned} feasible), "${sel.label}" was selected on ${why}`
         : `"${sel.label}" was selected on ${why}`
 
-    const other = runnerUp(d)
+    const other = runnerUp(d, sel)
     const clauses = other ? comparisonClauses(sel, other) : []
     if (other && clauses.length > 0) {
       parts.push(`${head} — against "${other.label}" it is ${joinList(clauses)}.`)

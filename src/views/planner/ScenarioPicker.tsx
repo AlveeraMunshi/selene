@@ -2,7 +2,7 @@
  * Scenario selection.
  *
  * Each card shows the scenario's own `summary` and `hypothesis` rather than
- * copy written here: the hypothesis is what the scenario was designed to
+ * copy written here: the hypothesis is what the scenario was built to
  * demonstrate, and keeping it on the card is what stops the planner and the
  * research writeup describing the same scenario differently.
  */
@@ -21,9 +21,9 @@ export function ScenarioPicker({ selectedId, onSelect, disabled }: ScenarioPicke
   return (
     <Panel
       title="Scenario"
-      subtitle="Each map is built to put a different kind of pressure on the planner."
+      subtitle="Each map puts a different kind of pressure on the planner."
     >
-      <div className="grid gap-2">
+      <div role="radiogroup" aria-label="Scenario" className="grid gap-2">
         {SCENARIOS.map((scenario) => (
           <ScenarioCard
             key={scenario.id}
@@ -52,32 +52,30 @@ function ScenarioCard({
   return (
     <button
       type="button"
-      // A radio in behaviour, so announce it as one rather than as a button
-      // the user has to guess is exclusive.
+      // A radio in behaviour, so it is announced as one rather than as a
+      // button the user has to discover is exclusive.
       role="radio"
       aria-checked={selected}
       disabled={disabled}
       onClick={() => onSelect(scenario.id)}
       className={cn(
-        'w-full rounded-lg border p-3 text-left transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500',
+        'focus-ring w-full rounded-control border p-3 text-left',
+        'transition-colors duration-[var(--duration-fast)]',
         selected
-          ? 'border-sky-500/60 bg-sky-500/10'
-          : 'border-neutral-800 bg-neutral-900/40 hover:border-neutral-700 hover:bg-neutral-900',
+          ? 'border-accent/50 bg-accent/10'
+          : 'border-line bg-surface-2 hover:border-line-strong hover:bg-surface-3',
         disabled && 'cursor-not-allowed opacity-50',
       )}
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-neutral-100">{scenario.name}</span>
-        <Badge variant={selected ? 'default' : 'outline'}>
+        <span className="text-[0.8125rem] font-medium text-ink">{scenario.name}</span>
+        <Badge tone={selected ? 'info' : 'default'} mono>
           {scenario.width}&times;{scenario.height}
         </Badge>
       </span>
-      <span className="mt-1 block text-xs leading-relaxed text-neutral-400">
-        {scenario.summary}
-      </span>
-      <span className="mt-2 block text-xs leading-relaxed text-neutral-500">
-        <span className="font-medium text-neutral-400">Demonstrates: </span>
+      <span className="mt-1 block text-2xs leading-4 text-ink-muted">{scenario.summary}</span>
+      <span className="mt-2 block text-2xs leading-4 text-ink-dim">
+        <span className="font-medium text-ink-muted">Demonstrates: </span>
         {scenario.hypothesis}
       </span>
     </button>

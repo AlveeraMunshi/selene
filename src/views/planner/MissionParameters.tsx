@@ -4,13 +4,13 @@
  * These are the controls the live preview exists to make legible: each one
  * feeds `weightsFor`/`constraintsFor` and therefore changes the route the
  * planner returns. The hints say what moving the control does to the plan,
- * not what the control is called.
+ * not what the control is called -- a slider labelled "Risk tolerance" with a
+ * hint reading "how much risk you tolerate" has told the operator nothing.
  */
 
 import type { MissionConfig } from '@/core/types'
-import { Panel, Toggle } from '@/ui'
+import { Panel, Slider, Toggle } from '@/ui'
 import { fmtDegrees, fmtPercent } from '@/lib/format'
-import { ParamSlider } from '@/views/shared/ParamSlider'
 
 export interface MissionParametersProps {
   config: MissionConfig
@@ -21,6 +21,8 @@ export interface MissionParametersProps {
   onMaxSlope: (v: number) => void
   onAutonomyLevel: (level: MissionConfig['autonomyLevel']) => void
 }
+
+const pct = (v: number) => fmtPercent(v)
 
 export function MissionParameters({
   config,
@@ -36,42 +38,45 @@ export function MissionParameters({
   return (
     <Panel
       title="Mission parameters"
-      subtitle="Every control below changes the cost function, so the previewed route moves with it."
+      subtitle="Every control here changes the cost function, so the previewed route moves with it."
     >
-      <div className="grid gap-5">
-        <ParamSlider
+      <div className="grid gap-4">
+        <Slider
           label="Risk tolerance"
           hint="Believed hazard above this is impassable. Raising it opens shorter, nastier routes."
           value={config.riskTolerance}
           min={0}
           max={1}
+          step={0.01}
           onChange={onRisk}
-          format={(v) => fmtPercent(v)}
+          format={pct}
           disabled={disabled}
         />
-        <ParamSlider
+        <Slider
           label="Energy priority"
           hint="Weights watt-hours against distance. High values route around climbs rather than over them."
           value={config.energyPriority}
           min={0}
           max={1}
+          step={0.01}
           onChange={onEnergyPriority}
-          format={(v) => fmtPercent(v)}
+          format={pct}
           disabled={disabled}
         />
-        <ParamSlider
+        <Slider
           label="Battery reserve"
-          hint="The mission stops rather than dropping below this. It is a floor, not a target."
+          hint="The mission stops rather than dropping below this. A floor, not a target."
           value={config.batteryReserveFrac}
           min={0}
           max={0.5}
+          step={0.01}
           onChange={onBatteryReserve}
-          format={(v) => fmtPercent(v)}
+          format={pct}
           disabled={disabled}
         />
-        <ParamSlider
+        <Slider
           label="Maximum slope"
-          hint="A hard climb limit. Cells steeper than this are never traversable at any weighting."
+          hint="A hard climb limit. Steeper cells are never traversable at any weighting."
           value={config.maxSlopeDeg}
           min={5}
           max={45}
@@ -81,18 +86,18 @@ export function MissionParameters({
           disabled={disabled}
         />
 
-        <div className="border-t border-neutral-800 pt-4">
+        <div className="border-t border-line pt-4">
           <Toggle
             checked={supervised}
             disabled={disabled}
-            onChange={(next: boolean) => onAutonomyLevel(next ? 'supervised' : 'autonomous')}
+            onChange={(next) => onAutonomyLevel(next ? 'supervised' : 'autonomous')}
             label="Supervised autonomy"
+            hint={
+              supervised
+                ? 'The rover stops and asks when it meets a situation outside its tolerances.'
+                : 'The rover resolves everything itself. Nothing will wait for you.'
+            }
           />
-          <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
-            {supervised
-              ? 'The rover stops and asks when it meets a situation outside its tolerances. You answer; it resumes.'
-              : 'The rover resolves every situation itself. Nothing will wait for you, including a route it would otherwise have queried.'}
-          </p>
         </div>
       </div>
     </Panel>

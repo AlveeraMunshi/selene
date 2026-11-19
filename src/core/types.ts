@@ -305,8 +305,17 @@ export interface RoverSpec {
   climbWhPerMPerDeg: number
   /** Cells. Hidden hazards within this radius become observed. */
   sensorRangeCells: number
-  /** Watt-hours per second drawn by avionics regardless of motion. */
-  idleW: number
+  /**
+   * Energy drawn by avionics regardless of motion, in **watt-hours per
+   * second**.
+   *
+   * Named for its unit after the original `idleW` cost a 3600x display bug:
+   * the field read as watts, the engine used it as Wh/s, and the planner panel
+   * duly rendered "0.02 W" for a 72 W draw. A unit that lives only in a doc
+   * comment is a unit that will be read wrong by whoever does not open the
+   * type.
+   */
+  idleWhPerS: number
 }
 
 // ---------------------------------------------------------------------------
@@ -513,7 +522,21 @@ export interface MissionMetrics {
   /** Hazards found that were actually on the route being driven. */
   hazardsOnRoute: number
   interventions: number
-  /** Sum of planner wall-clock time across every plan in the mission. */
+  /**
+   * Sum of planner wall-clock time across every plan in the mission.
+   *
+   * THE ONE NON-DETERMINISTIC FIELD IN THIS STRUCT. Every other field is a
+   * pure function of (scenarioId, seed, config, resolutions) and is therefore
+   * identical across a run and its replay; this one is a measurement of the
+   * machine, and will differ by a factor of three between a cold and a warm
+   * run of the same mission.
+   *
+   * Consequence: `deepEqual(computeMetrics(live), computeMetrics(replay(rec)))`
+   * is NOT a valid determinism assertion. Exclude this field, or compare the
+   * event log instead, which is fully deterministic. A replay check written
+   * the obvious way fails here for a reason that has nothing to do with
+   * replay being broken.
+   */
   planMsTotal: number
   planCount: number
   /** Worst believed hazard the rover actually drove across. */

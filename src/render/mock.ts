@@ -44,7 +44,7 @@ export const MOCK_ROVER: RoverSpec = {
   flatWhPerM: 0.45,
   climbWhPerMPerDeg: 0.035,
   sensorRangeCells: 7,
-  idleW: 12,
+  idleWhPerS: 0.02,
 }
 
 /** mulberry32, the same cheap deterministic generator the engine uses. */
@@ -175,12 +175,14 @@ function makeTerrain(width: number, height: number, seed: number): Terrain {
     hazard[i] = Math.min(1, hazard[i] + Math.max(0, (slopeDeg[i] - 18) / 45))
   }
 
-  // What only the rover can find: small patches of soft regolith.
-  for (let k = 0; k < 90; k++) {
+  // What only the rover can find: small patches of soft regolith. Sparse on
+  // purpose — a corridor where every other cell is a discovery reads as a
+  // broken map rather than as a sequence of findings.
+  for (let k = 0; k < 50; k++) {
     const cx = Math.floor(r() * width)
     const cy = Math.floor(r() * height)
     const rad = 1 + Math.floor(r() * 3)
-    const peak = 0.3 + r() * 0.6
+    const peak = 0.25 + r() * 0.5
     for (let y = cy - rad; y <= cy + rad; y++) {
       for (let x = cx - rad; x <= cx + rad; x++) {
         if (x < 0 || y < 0 || x >= width || y >= height) continue

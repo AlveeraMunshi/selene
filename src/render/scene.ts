@@ -38,7 +38,13 @@ import {
 import { PALETTE } from './colors'
 import { interpolatePose, poseOf, type Pose } from './interp'
 import { TerrainCache } from './terrainLayer'
-import { clientToCell, makeViewport, viewportScale, type Viewport } from './viewport'
+import {
+  clientToCell,
+  makeViewport,
+  viewportOrigin,
+  viewportScale,
+  type Viewport,
+} from './viewport'
 
 /** Frozen in docs/ENGINE_API.md. Implemented exactly; no extra fields. */
 export interface RenderOptions {
@@ -150,11 +156,10 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     gridW = state.belief.width
     gridH = state.belief.height
 
-    // The ratio can change mid-session when a window moves between monitors.
-    const nextDpr = currentDpr()
-    if (nextDpr !== dpr) {
-      dpr = nextDpr
-    }
+    // Re-read every frame: the ratio changes mid-session when the window is
+    // dragged to a monitor of a different density, and no resize event fires
+    // for that because the CSS size has not moved.
+    dpr = currentDpr()
     applyBackingStore()
 
     // setTransform rather than scale: it *replaces* the matrix, so a frame
@@ -185,18 +190,20 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
     const ready = terrain.ensure(state, staticOpts)
     const bitmap = terrain.bitmap
     const s = viewportScale(v)
-    const ox = (cssW - gridW * s) / 2
-    const oy = (cssH - gridH * s) / 2
+    // Taken from the viewport rather than re-derived here. Two copies of this
+    // formula is how the drawn grid and `cellAt` drift apart, and the symptom
+    // is a map that looks right and hit-tests one cell off.
+    const o = viewportOrigin(v)
 
     if (ready && bitmap !== null) {
       ctx.save()
       // Cells are data, not a photograph: smoothing would bleed a hazard cell
       // into its clear neighbour and make the boundary a lie.
       ctx.imageSmoothingEnabled = false
-      ctx.drawImage(bitmap as CanvasImageSource, ox, oy, gridW * s, gridH * s)
+      ctx.drawImage(bitmap as CanvasImageSource, o.x, o.y, gridW * s, gridH * s)
       ctx.restore()
     } else {
-      terrain.paintDirect(ctx, state, staticOpts, ox, oy, s)
+      terrain.paintDirect(ctx, state, staticOpts, o.x, o.y, s)
     }
   }
 

@@ -3,25 +3,23 @@
  *
  * WHY THIS COMPONENT IS A LEAF AND STAYS A LEAF: it is the one place that
  * subscribes to a whole SimState, which changes identity on every tick. A
- * tick therefore re-renders exactly this component — a single canvas element
- * with a stable ref callback — and nothing above it. Putting a panel, a
+ * tick therefore re-renders exactly this component -- a single canvas element
+ * with a stable ref callback -- and nothing above it. Putting a panel, a
  * legend or a telemetry readout *inside* this component's subtree would undo
- * that; overlays are passed in as children and rendered as siblings that do
- * not read the ticking state.
+ * that, so overlays are passed in as children and rendered as siblings.
  *
- * The actual pixels are drawn by the renderer's own rAF loop (Agent D), not
- * by React. React's only job here is to hand it a canvas and the current
- * options.
+ * The pixels are drawn by the renderer's own rAF loop, which reads the state
+ * from a ref. React's only job here is to hand it a canvas and the current
+ * options, and to translate pointer events into cells through `cellAt`.
  */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type PointerEvent, type ReactNode } from 'react'
 
 import { idx } from '@/core/terrain'
 import type { Cell, SimState } from '@/core/types'
-import type { RenderOptions } from '@/render/scene'
-import { useRenderer } from '@/render/useRenderer'
-
+import { useRenderer, type RenderOptions } from '@/render'
 import { cn } from '@/ui'
+
 import { fmtDegrees, fmtNumber, fmtPercent } from '@/lib/format'
 import { useRenderOptions } from '@/state/selectors'
 
@@ -29,9 +27,9 @@ export interface MapCanvasProps {
   state: SimState | null
   onCellClick?: (cell: Cell) => void
   /**
-   * Per-map overrides on the stored layer preferences — the planner pins
-   * `selectedCell` to the start, for instance. Memoize it at the call site;
-   * a fresh object each render would churn the renderer's options.
+   * Per-map overrides on the stored layer preferences -- the planner hides
+   * the trail, for instance. Memoize it at the call site; a fresh object each
+   * render would hand the renderer new options every frame it re-renders.
    */
   overrides?: Partial<RenderOptions>
   /** Overlay content, positioned over the canvas and outside its render path. */
@@ -39,6 +37,8 @@ export interface MapCanvasProps {
   className?: string
   /** The hovered-cell terrain readout. Off for small inline maps. */
   showReadout?: boolean
+  /** Stops the rAF loop when the map is on a hidden tab. */
+  enabled?: boolean
 }
 
 interface CellSample {
@@ -52,7 +52,7 @@ interface CellSample {
 /**
  * Read the believed values at a cell.
  *
- * Belief rather than terrain on purpose: the readout must show what the rover
+ * Belief rather than terrain on purpose: the readout shows what the rover
  * knows, not ground truth, or the operator can see through the fog the whole
  * autonomy story depends on (D4).
  */
@@ -76,26 +76,44 @@ export function MapCanvas({
   children,
   className,
   showReadout = true,
+  enabled = true,
 }: MapCanvasProps) {
   const stored = useRenderOptions()
   // Hover is local, never in the store: it changes on every mouse move, and a
   // store write per move would re-render every subscriber in the app.
   const [hover, setHover] = useState<Cell | null>(null)
 
-  const handleHover = useCallback((cell: Cell | null) => {
-    setHover((prev) => {
-      if (prev === null && cell === null) return prev
-      if (prev && cell && prev.x === cell.x && prev.y === cell.y) return prev
-      return cell ? { x: cell.x, y: cell.y } : null
-    })
-  }, [])
-
   const options = useMemo<RenderOptions>(
     () => ({ ...stored, ...overrides, hoverCell: hover }),
     [stored, overrides, hover],
   )
 
-  const { canvasRef } = useRenderer({ state, options, onCellClick, onCellHover: handleHover })
+  const { canvasRef, cellAt } = useRenderer(state, options, { enabled })
+
+  const handleMove = useCallback(
+    (e: PointerEvent<HTMLCanvasElement>) => {
+      const cell = cellAt(e.clientX, e.clientY)
+      setHover((prev) => {
+        // Only re-render when the cell under the cursor actually changed;
+        // a pointermove inside one cell is roughly 20 events per cell.
+        if (prev === null && cell === null) return prev
+        if (prev && cell && prev.x === cell.x && prev.y === cell.y) return prev
+        return cell ? { x: cell.x, y: cell.y } : null
+      })
+    },
+    [cellAt],
+  )
+
+  const handleLeave = useCallback(() => setHover(null), [])
+
+  const handleClick = useCallback(
+    (e: PointerEvent<HTMLCanvasElement>) => {
+      if (!onCellClick) return
+      const cell = cellAt(e.clientX, e.clientY)
+      if (cell) onCellClick(cell)
+    },
+    [cellAt, onCellClick],
+  )
 
   const sample = hover && state ? sampleCell(state, hover) : null
 
@@ -103,11 +121,10 @@ export function MapCanvas({
     <div className={cn('relative isolate h-full w-full overflow-hidden', className)}>
       <canvas
         ref={canvasRef}
-        className="block h-full w-full touch-none"
-        // The canvas is the interaction surface; the renderer resolves clicks
-        // to cells, so it needs to be focusable for keyboard users to reach
-        // the controls around it in a sensible order.
-        tabIndex={-1}
+        onPointerMove={handleMove}
+        onPointerLeave={handleLeave}
+        onClick={handleClick}
+        className={cn('block h-full w-full touch-none', onCellClick && 'cursor-crosshair')}
         aria-label="Mission map"
       />
       {children}
@@ -119,22 +136,22 @@ export function MapCanvas({
 /**
  * Hovered-cell values.
  *
- * Shows "unobserved" explicitly rather than printing a hazard number the
- * rover has not actually measured — the orbital layer is believed, not known,
- * and the difference is the point of the simulation.
+ * Says "orbital only" rather than printing a hazard number as though the
+ * rover had measured it: the orbital layer is believed, not known, and the
+ * difference is the point of the simulation.
  */
 function CellReadout({ sample }: { sample: CellSample }) {
   return (
-    <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-white/10 bg-black/70 px-2.5 py-1.5 font-mono text-[11px] leading-relaxed text-neutral-300 backdrop-blur-sm">
-      <span className="text-neutral-500">cell</span> {sample.cell.x},{sample.cell.y}
+    <div className="num pointer-events-none absolute bottom-2 left-2 rounded-control border border-line bg-void/80 px-2.5 py-1.5 text-2xs leading-relaxed text-ink-muted backdrop-blur-sm">
+      <span className="text-ink-faint">cell</span> {sample.cell.x},{sample.cell.y}
       {'  '}
-      <span className="text-neutral-500">elev</span> {fmtNumber(sample.elevation, 1)}m
+      <span className="text-ink-faint">elev</span> {fmtNumber(sample.elevation, 1)}m
       {'  '}
-      <span className="text-neutral-500">slope</span> {fmtDegrees(sample.slopeDeg)}
+      <span className="text-ink-faint">slope</span> {fmtDegrees(sample.slopeDeg)}
       {'  '}
-      <span className="text-neutral-500">hazard</span> {fmtPercent(sample.hazard)}
+      <span className="text-ink-faint">hazard</span> {fmtPercent(sample.hazard)}
       {'  '}
-      <span className={sample.observed ? 'text-emerald-400' : 'text-amber-400'}>
+      <span className={sample.observed ? 'text-good' : 'text-warn'}>
         {sample.observed ? 'observed' : 'orbital only'}
       </span>
     </div>

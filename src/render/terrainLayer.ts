@@ -36,6 +36,7 @@ import {
   DISCOVERED_MARKER_FLOOR,
   FOG_DESATURATION,
   FOG_STRENGTH,
+  HAZARD_ALPHA_GAMMA,
   HAZARD_FLOOR,
   HAZARD_MAX_ALPHA,
   HILLSHADE_STRENGTH,
@@ -195,6 +196,16 @@ export class TerrainCache {
   private offscreenUnavailable = false
 
   /**
+   * How many times the per-cell bake has actually run.
+   *
+   * Exposed because the cache's whole reason to exist is a claim about this
+   * number — that it tracks belief changes rather than frames — and that claim
+   * is otherwise unobservable from outside. The tests assert on it, and it is
+   * cheap enough to leave in for a performance HUD.
+   */
+  private bakeCount = 0
+
+  /**
    * Bring the cache up to date with `state`. Returns false when no bitmap is
    * available, in which case the caller should use `paintDirect`.
    */
@@ -277,6 +288,11 @@ export class TerrainCache {
     return this.revealed
   }
 
+  /** Diagnostic: how many per-cell bakes have run since construction. */
+  get bakes(): number {
+    return this.bakeCount
+  }
+
   destroy(): void {
     this.surface = null
     this.ctx = null
@@ -331,6 +347,7 @@ export class TerrainCache {
    * (five transcendentals per cell).
    */
   private bake(state: SimState, opts: StaticLayerOptions, out: Uint8ClampedArray): void {
+    this.bakeCount++
     const { belief, terrain, config } = state
     const w = belief.width
     const h = belief.height
@@ -427,12 +444,13 @@ export class TerrainCache {
         const believed = bHaz[i]
 
         if (opts.showHazard && believed > HAZARD_FLOOR) {
-          // Severity is scaled against the *effective* risk tolerance so the
-          // colour tracks the constraint the rover is actually driving under:
-          // raising the tolerance slider should visibly relax the map.
+          // Severity is scaled against the *effective* risk tolerance so both
+          // the hue and the alpha track the constraint the rover is actually
+          // driving under: raising the tolerance slider visibly relaxes the
+          // map, which is the point of the slider.
           const sev = maxHazard > 0 ? Math.min(1, believed / Math.max(maxHazard, 0.05)) : 1
           hazardColor(sev, tint)
-          mixRgb(base, tint, Math.min(1, believed) * HAZARD_MAX_ALPHA, base)
+          mixRgb(base, tint, Math.pow(sev, HAZARD_ALPHA_GAMMA) * HAZARD_MAX_ALPHA, base)
         }
 
         // The sensor-discovered component: what the belief knows beyond what
@@ -483,7 +501,7 @@ export class TerrainCache {
     const size = Math.ceil(scale) + 1
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const p = ((y * w + x) << 2) as number
+        const p = (y * w + x) << 2
         ctx.fillStyle = `rgb(${buf[p]},${buf[p + 1]},${buf[p + 2]})`
         ctx.fillRect(Math.floor(originX + x * scale), Math.floor(originY + y * scale), size, size)
       }

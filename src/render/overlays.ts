@@ -168,11 +168,25 @@ export function drawHazardPulses(ctx: CanvasRenderingContext2D, v: Viewport, sta
 // Routes
 // ---------------------------------------------------------------------------
 
-function tracePath(ctx: CanvasRenderingContext2D, v: Viewport, cells: readonly Cell[]): void {
+/**
+ * Trace cell centres as a polyline over `[from, to)`.
+ *
+ * Takes a range rather than a sliced array because this runs on every frame
+ * for every route on screen, and `slice` would allocate two throwaway arrays
+ * per route per frame purely to express "the part before the rover" and "the
+ * part after it".
+ */
+function tracePath(
+  ctx: CanvasRenderingContext2D,
+  v: Viewport,
+  cells: readonly Cell[],
+  from = 0,
+  to = cells.length,
+): void {
   ctx.beginPath()
-  for (let i = 0; i < cells.length; i++) {
+  for (let i = from; i < to; i++) {
     const p = cellCentreToCss(v, cells[i].x, cells[i].y)
-    if (i === 0) ctx.moveTo(p.x, p.y)
+    if (i === from) ctx.moveTo(p.x, p.y)
     else ctx.lineTo(p.x, p.y)
   }
 }
@@ -209,8 +223,7 @@ export function drawPlannedRoute(
 
   // Driven: dim.
   if (whole > 0 || frac > 0) {
-    const driven = cells.slice(0, whole + 1)
-    tracePath(ctx, v, driven)
+    tracePath(ctx, v, cells, 0, whole + 1)
     if (frac > 0 && whole + 1 < cells.length) {
       const a = cellCentreToCss(v, cells[whole].x, cells[whole].y)
       const b = cellCentreToCss(v, cells[whole + 1].x, cells[whole + 1].y)
@@ -222,9 +235,8 @@ export function drawPlannedRoute(
   }
 
   // Remaining: crisp, with a soft glow so it reads over a bright highland.
-  const rest = cells.slice(whole)
-  if (rest.length >= 2) {
-    tracePath(ctx, v, rest)
+  if (cells.length - whole >= 2) {
+    tracePath(ctx, v, cells, whole, cells.length)
     ctx.strokeStyle = cssRgb(RGB.accent, 0.18)
     ctx.lineWidth = width * 2.4
     ctx.stroke()
@@ -381,15 +393,17 @@ export function drawRover(
   ctx.translate(c.x, c.y)
   ctx.rotate(pose.heading)
 
-  // Wheels: two bogies a side, drawn under the hull.
+  // Wheels: two bogies a side, drawn under the hull. The offsets are unrolled
+  // rather than looped over array literals, which would allocate on every
+  // frame for four ellipses.
   ctx.fillStyle = PALETTE.roverDark
   const wr = len * 0.17
-  for (const dx of [-len * 0.3, len * 0.3]) {
-    for (const dy of [-wid * 0.52, wid * 0.52]) {
-      ctx.beginPath()
-      ctx.ellipse(dx, dy, wr, wr * 0.62, 0, 0, Math.PI * 2)
-      ctx.fill()
-    }
+  const wx = len * 0.3
+  const wy = wid * 0.52
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath()
+    ctx.ellipse(i < 2 ? -wx : wx, i % 2 === 0 ? -wy : wy, wr, wr * 0.62, 0, 0, Math.PI * 2)
+    ctx.fill()
   }
 
   // Hull.

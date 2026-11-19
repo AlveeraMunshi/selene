@@ -236,7 +236,7 @@ export const LIGHT_ALTITUDE_DEG = 45
 export const RELIEF_EXAGGERATION = 2.2
 
 /** How far an unobserved cell is pushed toward `fog`, 0..1. */
-export const FOG_STRENGTH = 0.78
+export const FOG_STRENGTH = 0.86
 
 /** Extra desaturation applied to unobserved cells, on top of the fog mix. */
 export const FOG_DESATURATION = 0.6
@@ -252,8 +252,21 @@ export const SLOPE_MAX_ALPHA = 0.5
  *
  * Terrain generators sprinkle a continuous hazard field, so without a floor
  * every cell carries a faint amber wash and the layer stops meaning anything.
+ * Measured against the mock terrain, two thirds of cells sit under 0.1.
  */
-export const HAZARD_FLOOR = 0.04
+export const HAZARD_FLOOR = 0.08
+
+/**
+ * Exponent applied to normalised hazard before it becomes an alpha.
+ *
+ * Linear alpha makes the map glow everywhere: a continuous hazard field has a
+ * long tail of mildly rough cells, and at alpha = severity each of them is
+ * plainly visible, so a genuinely impassable cell is only a little louder than
+ * ground the rover would happily cross. Above 1 this pushes the low end down
+ * and leaves the top of the range alone, which is what restores the contrast
+ * between "rough" and "do not drive here".
+ */
+export const HAZARD_ALPHA_GAMMA = 1.6
 
 /** Severity above which the "sensors found this" marker is worth drawing. */
 export const DISCOVERED_MARKER_FLOOR = 0.08

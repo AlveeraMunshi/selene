@@ -23,6 +23,8 @@ import type {
   SimState,
 } from '@/core/types'
 
+import { observedFraction } from '@/core/terrain'
+
 import { useMissionStore, type RunStatus } from './missionStore'
 import { planFailureMessage } from '@/lib/preview'
 
@@ -48,11 +50,11 @@ export function useLiveState(): SimState | null {
  * on screen.
  */
 export function useDisplayState(): SimState | null {
-  return useMissionStore((s) => s.replay?.state ?? s.state)
+  return useMissionStore((s) => (s.replay?.active ? s.replay.state : s.state))
 }
 
 export function useIsReplaying(): boolean {
-  return useMissionStore((s) => s.replay !== null)
+  return useMissionStore((s) => s.replay?.active === true)
 }
 
 // ---------------------------------------------------------------------------
@@ -128,7 +130,7 @@ export interface TelemetrySlice {
 export function useTelemetry(): TelemetrySlice | null {
   return useMissionStore(
     useShallow((s): TelemetrySlice | null => {
-      const st = s.replay?.state ?? s.state
+      const st = s.replay?.active ? s.replay.state : s.state
       if (!st) return null
       return {
         tick: st.tick,
@@ -153,19 +155,16 @@ export function useTelemetry(): TelemetrySlice | null {
 /**
  * Fraction of the map the rover has sensed.
  *
- * Derived by counting the belief's `observed` array, which is a real engine
- * output rather than an invented progress number. Recomputed on every tick,
- * which is a 16k-element scan — cheap next to a render, and the alternative
- * is caching a number that can silently go stale.
+ * Uses the engine's own `observedFraction` rather than counting here, so the
+ * number on screen is the same one a DecisionRecord carries. It scans the
+ * belief on every tick, which is cheap next to a render and is preferable to
+ * caching a figure that can silently go stale.
  */
 export function useObservedFraction(): number | null {
   return useMissionStore((s) => {
-    const st = s.replay?.state ?? s.state
+    const st = s.replay?.active ? s.replay.state : s.state
     if (!st) return null
-    const obs = st.belief.observed
-    let seen = 0
-    for (let i = 0; i < obs.length; i++) if (obs[i] !== 0) seen++
-    return obs.length === 0 ? 0 : seen / obs.length
+    return observedFraction(st.belief)
   })
 }
 
@@ -175,18 +174,18 @@ export function useObservedFraction(): number | null {
 
 /** Stable between decisions: `step()` keeps the array identity when unchanged. */
 export function useDecisions(): DecisionRecord[] {
-  return useMissionStore((s) => (s.replay?.state ?? s.state)?.decisions ?? EMPTY_DECISIONS)
+  return useMissionStore((s) => (s.replay?.active ? s.replay.state : s.state)?.decisions ?? EMPTY_DECISIONS)
 }
 
 export function useEvents(): SimEvent[] {
-  return useMissionStore((s) => (s.replay?.state ?? s.state)?.events ?? EMPTY_EVENTS)
+  return useMissionStore((s) => (s.replay?.active ? s.replay.state : s.state)?.events ?? EMPTY_EVENTS)
 }
 
 export function useSelectedDecision(): DecisionRecord | null {
   return useMissionStore((s) => {
     const id = s.selectedDecisionId
     if (!id) return null
-    const st = s.replay?.state ?? s.state
+    const st = s.replay?.active ? s.replay.state : s.state
     return st?.decisions.find((d) => d.id === id) ?? null
   })
 }
@@ -324,6 +323,15 @@ export function useRecordActions() {
 
 export function useSelectDecision() {
   return useMissionStore((s) => s.selectDecision)
+}
+
+export function useResolveIntervention() {
+  return useMissionStore((s) => s.resolveIntervention)
+}
+
+/** True when persistence is unavailable, so a view can say so once. */
+export function usePersistenceAvailable(): boolean {
+  return useMissionStore((s) => s.persistenceAvailable)
 }
 
 // Shared empty literals so an absent mission does not hand a new array to a
